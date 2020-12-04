@@ -39,10 +39,8 @@ xp, yp, zp = np.meshgrid(x, y, z)
 xyz = np.c_[mkvc(xp), mkvc(yp), mkvc(zp)]
 
 # Uncomment this part to show the rotated block domain 
-""" 
 xyz = np.asarray([np.dot(rotation, i) for i in xyz])
 mesh = refine_tree_xyz(mesh, np.asarray(xyz), octree_levels=[2, 2], method="surface", finalize=False)
-"""
 
 # Uncomment this part to show a sphere
 """
