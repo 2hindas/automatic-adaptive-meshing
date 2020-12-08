@@ -5,9 +5,12 @@ Created on Thu Dec  3 11:33:42 2020
 
 @author: larslaheij
 """
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import emg3d
 import numpy as np
 import matplotlib.pyplot as plt
+from SimPEG.electromagnetics.frequency_domain.fields import Fields3DMagneticFluxDensity
 from matplotlib.colors import LogNorm
 from discretize import TreeMesh
 from discretize.utils import mkvc, refine_tree_xyz
@@ -148,4 +151,17 @@ model[ind_block] = res_block
 simulation = fdem.simulation.Simulation3DMagneticFluxDensity(
     mesh, survey=survey, rhoMap=model_map, Solver=Solver
 )
+
+dpred = simulation.dpred(model)
+print(dpred)
+
+field = Fields3DMagneticFluxDensity(simulation)
+field.startup()
+print(field.knownFields)
+magnetic_flux = field._b(None, source_list)
+
+
+
+
+
 # Compute predicted data for a your model.)
