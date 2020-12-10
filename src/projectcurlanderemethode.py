@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Dec  3 11:33:42 2020
+Created on Wed Dec  9 11:26:41 2020
 
 @author: larslaheij
 """
@@ -78,7 +78,7 @@ for ii in range(len(frequencies)):
 survey = fdem.Survey(source_list)
 
 # minimum cell width in each dimension
-dx = 100 #As calculated by 10% of the minimum skin depth
+dx = 100
 dy = 100
 dz = 100
 
@@ -115,7 +115,7 @@ mesh = refine_tree_xyz(
 )
 # Mesh refinement near transmitters and receivers
 mesh = refine_tree_xyz(
-    mesh, source_locations, octree_levels=[2,4], method="radial", finalize=False
+    mesh, source_locations, octree_levels=[2, 4], method="radial", finalize=False
 )
 
 mesh = refine_tree_xyz(
@@ -150,7 +150,7 @@ xfaces = mesh.faces_x # x-faces
 yfaces = mesh.faces_y # y-faces
 zfaces = mesh.faces_z # z-faces
 
-# Resistivity in Ohm m
+# Resistivity in Ohm m)
 res_background = 1.0
 res_block = 100.0
 conductivity_background = 1/100.0
@@ -176,7 +176,7 @@ model[ind_block] = res_block
 '''
 # Plot cell volumes
 v = mesh.cell_volumes
-mesh.plot_slice(np.log10(v),ind = 8,grid=True)
+mesh.plot_slice(np.log10(v),ind = 1,grid=True)
 plt.show()
 '''
 #-----------------------------------------------------------------------------
@@ -203,62 +203,27 @@ print("Length of Sm is",len(Sm))
 #Curl of Electric field computed on the cell faces
 print("Curl of Electric field computed on the cell faces has formula Ce = Sm -i*omega*b. ")
 Ce = Sm - 1j*omegas[0]*MagFluxDensity #Curl electric field
-Ce = np.reshape(Ce,len(Ce))
-CeX = Ce[0:(mesh.n_faces_x)]
-CeY = Ce[(mesh.n_faces_x):(mesh.n_faces_x)+(mesh.n_faces_y)]
-CeZ = Ce[(mesh.n_faces_x)+(mesh.n_faces_y):(mesh.n_faces_x)+(mesh.n_faces_y)+(mesh.n_faces_z)]
-
-print('begin')
-#Interpolate curl using radial basis interpolation 'mutiquadric'
-InterpolatedCeX = sp.interpolate.Rbf(xfaces[:,0],xfaces[:,1],xfaces[:,2],CeX)
-InterpolatedCeY = sp.interpolate.Rbf(yfaces[:,0],yfaces[:,1],yfaces[:,2],CeY)
-InterpolatedCeZ = sp.interpolate.Rbf(zfaces[:,0],zfaces[:,1],zfaces[:,2],CeZ)
-print('done')
 
 #Electric field solution
 fieldselectric = simulationelectricfield.fields(model)
 Electricfield = fieldselectric[:,'eSolution']
-Electricfield = np.reshape(Electricfield,len(Electricfield))
-Ex = Electricfield[0:(mesh.n_edges_x)]
-Ey = Electricfield[(mesh.n_edges_x):(mesh.n_edges_x)+(mesh.n_edges_y)]
-Ez = Electricfield[(mesh.n_edges_x)+(mesh.n_edges_y):(mesh.n_edges_x)+(mesh.n_edges_y)+(mesh.n_edges_z)]
-print("Length of electric field array is",len(Electricfield))
-print("Electric field is computed on the edges")
-
-#Interpolate Electric field using radial basis interpolation 'mutiquadric'
-InterpolatedEx = sp.interpolate.Rbf(xedges[:,0],xedges[:,1],xedges[:,2],Ex)
-InterpolatedEy = sp.interpolate.Rbf(yedges[:,0],yedges[:,1],yedges[:,2],Ey)
-InterpolatedEz = sp.interpolate.Rbf(zedges[:,0],zedges[:,1],zedges[:,2],Ez)
-print('done with interpolating')
+CeFromEfield = mesh.edge_curl*Electricfield
 
 
-#Operators and functions used for integrating
-# x is in these functions a vector x = (x,y,z)
-#Curl operator
-def curl(f,x):
-    jac = nd.Jacobian(f)(x)
-    return np.array([jac[2,1]-jac[1,2],jac[0,2]-jac[2,0],jac[1,0]-jac[0,1]])
-#Interpolated Electric field
-def Efield(x):
-    return np.array([InterpolatedEx(x[0],x[1],x[2]),InterpolatedEy(x[0],x[1],x[2]),InterpolatedEz(x[0],x[1],x[2])])
-#Interpolated curl of the Electric field
-def Curlfield(x):
-    return np.array([InterpolatedCeX(x[0],x[1],x[2]),InterpolatedCeY(x[0],x[1],x[2]),InterpolatedCeZ(x[0],x[1],x[2])])
-def errorcomputer(x):
-    return np.linalg.norm(Curlfield(x)-curl(Efield,x))
-
-errorcellcenters = []
-for i in xyzcells:
-    errorcellcenters.append(errorcomputer(i))
-np.save('error.npy',np.array(errorcellcenters))
-#hoetegebruiken = np.load('curl1.npy')
+#From face to cell center operator
+A = mesh.average_face_to_cell
+CeCell1 = A*Ce
+CeCell1 = np.reshape(CeCell1,len(CeCell1))
+CeCell2 = A*CeFromEfield
+CeCell2 = np.reshape(CeCell2,len(CeCell2))
 #Compute error in every cell center
+errorcellcenters = []
+for i in range(len(xyzcells)):
+    errorcellcenters.append(np.abs(CeCell1[i]-CeCell2[i]))
+                            
 percentage = 0.05 #Percentage of the grid you want to refine
 Ncellstorefine = int(np.ceil(percentage*len(xyzcells)))
-#Cells required to refine (5% of the domain with the largest errors)
-cellstorefine = xyzcells[np.argpartition(np.load('error.npy'),-Ncellstorefine)[-Ncellstorefine:]]
-
-#plot cells to refine
+cellstorefine = xyzcells[np.argpartition(errorcellcenters,-Ncellstorefine)[-Ncellstorefine:]]
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.scatter(cellstorefine[:,0], cellstorefine[:,1], cellstorefine[:,2])
@@ -268,19 +233,4 @@ ax.set_zlabel('Z')
 
 plt.show()
 #-----------------------------------------------------------------------------
-print('Error estimator is finished')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+print('Error estimator is af')

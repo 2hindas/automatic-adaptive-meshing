@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Dec  3 11:33:42 2020
+Created on Wed Dec  9 15:14:10 2020
 
 @author: larslaheij
 """
@@ -218,34 +218,31 @@ print('done')
 #Electric field solution
 fieldselectric = simulationelectricfield.fields(model)
 Electricfield = fieldselectric[:,'eSolution']
-Electricfield = np.reshape(Electricfield,len(Electricfield))
-Ex = Electricfield[0:(mesh.n_edges_x)]
-Ey = Electricfield[(mesh.n_edges_x):(mesh.n_edges_x)+(mesh.n_edges_y)]
-Ez = Electricfield[(mesh.n_edges_x)+(mesh.n_edges_y):(mesh.n_edges_x)+(mesh.n_edges_y)+(mesh.n_edges_z)]
 print("Length of electric field array is",len(Electricfield))
 print("Electric field is computed on the edges")
+CeFromEfield = mesh.edge_curl*Electricfield
+CeFromEfield = np.reshape(CeFromEfield,len(CeFromEfield))
+CeXFromE = CeFromEfield[0:(mesh.n_faces_x)]
+CeYFromE = CeFromEfield[(mesh.n_faces_x):(mesh.n_faces_x)+(mesh.n_faces_y)]
+CeZFromE = CeFromEfield[(mesh.n_faces_x)+(mesh.n_faces_y):(mesh.n_faces_x)+(mesh.n_faces_y)+(mesh.n_faces_z)]
 
-#Interpolate Electric field using radial basis interpolation 'mutiquadric'
-InterpolatedEx = sp.interpolate.Rbf(xedges[:,0],xedges[:,1],xedges[:,2],Ex)
-InterpolatedEy = sp.interpolate.Rbf(yedges[:,0],yedges[:,1],yedges[:,2],Ey)
-InterpolatedEz = sp.interpolate.Rbf(zedges[:,0],zedges[:,1],zedges[:,2],Ez)
+#Interpolate Curl from Electric field using radial basis interpolation 'mutiquadric'
+InterpolatedCeXFromE = sp.interpolate.Rbf(xfaces[:,0],xfaces[:,1],xfaces[:,2],CeXFromE)
+InterpolatedCeYFromE = sp.interpolate.Rbf(yfaces[:,0],yfaces[:,1],yfaces[:,2],CeYFromE)
+InterpolatedCeZFromE = sp.interpolate.Rbf(zfaces[:,0],zfaces[:,1],zfaces[:,2],CeZFromE)
 print('done with interpolating')
 
 
 #Operators and functions used for integrating
 # x is in these functions a vector x = (x,y,z)
-#Curl operator
-def curl(f,x):
-    jac = nd.Jacobian(f)(x)
-    return np.array([jac[2,1]-jac[1,2],jac[0,2]-jac[2,0],jac[1,0]-jac[0,1]])
 #Interpolated Electric field
-def Efield(x):
-    return np.array([InterpolatedEx(x[0],x[1],x[2]),InterpolatedEy(x[0],x[1],x[2]),InterpolatedEz(x[0],x[1],x[2])])
 #Interpolated curl of the Electric field
-def Curlfield(x):
+def Curlfield1(x):
     return np.array([InterpolatedCeX(x[0],x[1],x[2]),InterpolatedCeY(x[0],x[1],x[2]),InterpolatedCeZ(x[0],x[1],x[2])])
+def Curlfield2(x):
+    return np.array([InterpolatedCeXFromE(x[0],x[1],x[2]),InterpolatedCeYFromE(x[0],x[1],x[2]),InterpolatedCeZFromE(x[0],x[1],x[2])])
 def errorcomputer(x):
-    return np.linalg.norm(Curlfield(x)-curl(Efield,x))
+    return np.linalg.norm(Curlfield1(x)-Curlfield2(x))
 
 errorcellcenters = []
 for i in xyzcells:
@@ -269,18 +266,3 @@ ax.set_zlabel('Z')
 plt.show()
 #-----------------------------------------------------------------------------
 print('Error estimator is finished')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
