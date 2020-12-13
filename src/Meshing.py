@@ -41,7 +41,7 @@ def create_sphere_surface(x, y, z, radius):
     return np.asarray(sphere_xyz)
 
 
-def create_octree_mesh(domain, cellwidth, points):
+def create_octree_mesh(domain, cellwidth, points, method='surface'):
     # domain dimensions
     x_length = np.abs(domain[0][0] - domain[0][1])
     y_length = np.abs(domain[1][0] - domain[1][1])
@@ -59,9 +59,16 @@ def create_octree_mesh(domain, cellwidth, points):
     mesh = TreeMesh([hx, hy, hz], x0="CCC")
 
     # refine mesh around the given surface points
-    mesh = refine_tree_xyz(mesh, points, octree_levels=[2, 2, 2], method="surface", max_distance=10,
+    mesh = refine_tree_xyz(mesh, points, octree_levels=[2, 2, 2], method=method, max_distance=10,
                            finalize=True)
 
+    return mesh
+
+
+def refine_at_locations(mesh, locations):
+    mesh = refine_tree_xyz(
+        mesh, locations, octree_levels=[2, 4], method="radial", finalize=False
+    )
     return mesh
 
 
