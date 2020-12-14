@@ -94,14 +94,13 @@ def estimate_curl_electric_field(mesh, survey, model_map, model, interpolation='
 
     EF_x_inter, EF_y_inter, EF_z_inter = interpolator(x_edges, y_edges, z_edges, EF_x, EF_y, EF_z)
 
-    return curl_x_inter, curl_y_inter, curl_z_inter, EF_x_inter, EF_y, EF_z_inter
+    return curl_x_inter, curl_y_inter, curl_z_inter, EF_x_inter, EF_y_inter, EF_z_inter
 
 
 def compute_cell_error(cell, curl_x, curl_y, curl_z, ef_x, ef_y, ef_z):
 
     def ef_interpolator(x):
-        return np.array([ef_x(x[0], x[1], x[2]), ef_x(x[0], x[1], x[2]),
-                         ef_x(x[0], x[1], x[2])])
+        return np.array([ef_x(*x), ef_y(*x), ef_z(*x)])
 
     jacobian = nd.Jacobian(ef_interpolator)(cell)
     curl = np.array([jacobian[2, 1] - jacobian[1, 2], jacobian[0, 2] -
