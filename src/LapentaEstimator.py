@@ -103,6 +103,7 @@ def compute_cell_error(cell, curl_x, curl_y, curl_z, ef_x, ef_y, ef_z):
         return np.array([ef_x(*x), ef_y(*x), ef_z(*x)])
 
     jacobian = nd.Jacobian(ef_interpolator)(cell)
+    jacobian[np.isnan(jacobian)] = 0  # handle NaN-values in the jacobian
     curl = np.array([jacobian[2, 1] - jacobian[1, 2], jacobian[0, 2] -
                      jacobian[2, 0], jacobian[1, 0] - jacobian[0, 1]])
 
