@@ -2,11 +2,16 @@ import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-from src.Meshing import *
-from src.Setup import *
+from discretize.utils import mkvc
+import matplotlib.pyplot as plt
+import numpy as np
+import Meshing as M
+import Setup as Set
 from SimPEG.utils import surface2ind_topo
 from SimPEG import maps
-from src.LapentaEstimator import estimate_error
+from LapentaEstimator import estimate_error
+import search_area as sa
+from iterator import iterator
 
 domain = ((-500, 4500), (-1000, 1000), (-1200, 200))
 
@@ -21,7 +26,7 @@ z = np.linspace(-1000, -800, 30)
 xp, yp, zp = np.meshgrid(x, y, z)
 block = np.c_[mkvc(xp), mkvc(yp), mkvc(zp)]
 cell_width = 50
-mesh = create_octree_mesh(domain, cell_width, block, 'surface')
+mesh = M.create_octree_mesh(domain, cell_width, block, 'surface')
 
 # plot_mesh_slice(mesh, 'z', 0)
 
@@ -39,12 +44,16 @@ frequencies = [1.0]  # Frequency (Hz)
 omegas = [2.0 * np.pi]  # Radial frequency (Hz)
 print("Number of receivers", len(receiver_locations))
 
-survey = define_survey(frequencies, receiver_locations, source_locations, ntx)
+survey = Set.define_survey(frequencies, receiver_locations, source_locations, ntx)
 
-refine_at_locations(mesh, source_locations)
-refine_at_locations(mesh, source_locations)
+#Refine at certain locations
+box_surface = M.create_box_surface(x, y, z, 'x',0)
+M.refine_at_locations(mesh, box_surface)
+M.refine_at_locations(mesh, source_locations)
+M.refine_at_locations(mesh, receiver_locations)
 
 mesh.finalize()
+print(mesh)
 
 print("Total number of cells", mesh.nC)
 print("Total number of cell faces", mesh.n_faces)
@@ -53,6 +62,7 @@ print("Total number of cell edges", mesh.n_edges)
 # Resistivity in Ohm m
 res_background = 1.0
 res_block = 100.0
+# Conductivity in S/m
 conductivity_background = 1 / 100.0
 conductivity_block = 1 / 1.0
 
@@ -64,36 +74,35 @@ model_map = maps.InjectActiveCells(mesh, ind_active, res_background)
 
 # Define model. Models in SimPEG are vector arrays
 model = res_background * np.ones(ind_active.sum())
-ind_block = (
-        (mesh.gridCC[ind_active, 0] <= 600.0)
-        & (mesh.gridCC[ind_active, 0] >= 200.0)
-        & (mesh.gridCC[ind_active, 1] <= 500.0)
-        & (mesh.gridCC[ind_active, 1] >= -500.0)
-        & (mesh.gridCC[ind_active, 2] <= -800.0)
-        & (mesh.gridCC[ind_active, 2] >= -1000.0)
-)
-model[ind_block] = res_block
+#Must define this as a function
+def ind_block(mesh,ind_active):
+    ind_block = (
+            (mesh.gridCC[ind_active, 0] <= 600.0)
+            & (mesh.gridCC[ind_active, 0] >= 200.0)
+            & (mesh.gridCC[ind_active, 1] <= 500.0)
+            & (mesh.gridCC[ind_active, 1] >= -500.0)
+            & (mesh.gridCC[ind_active, 2] <= -800.0)
+            & (mesh.gridCC[ind_active, 2] >= -1000.0)
+    )
+    return ind_block
+model[ind_block(mesh,ind_active)] = res_block
 
-cells = mesh.cell_centers
+mesh = iterator(mesh, domain, surface, cell_width, block, M.create_box_surface,x,y,z
+                , receiver_locations, source_locations, survey
+                , res_background, res_block, model_map
+                , model, ind_block,lim_iterations=4)
+print(mesh)
 
-search_area = cells[(cells[:, 0] > (0 - cell_width)) & (cells[:, 0] < (4000 + cell_width))
-                    & (cells[:, 1] > (-500 - cell_width)) & (cells[:, 1] < (500 + cell_width))
-                    & (cells[:, 2] > (-1000 - cell_width)) & (cells[:, 2] < (-800 + cell_width))]
+'''
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(cells_to_refine[:, 0], cells_to_refine[:, 1], cells_to_refine[:, 2])
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
+ax.set_zlabel('Z')
 
-num_iterations = 1
-for i in range(0, num_iterations):
-    cells_to_refine = estimate_error(mesh, survey, model_map, model, search_area, 'linear',
-                                     frequencies[0], omegas[0])
+plt.show()
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(cells_to_refine[:, 0], cells_to_refine[:, 1], cells_to_refine[:, 2])
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-
-    plt.show()
-
-    # refine cells
-
+# refine cells
+'''
 

@@ -60,7 +60,7 @@ def create_octree_mesh(domain, cellwidth, points, method='surface'):
 
     # refine mesh around the given surface points
     mesh = refine_tree_xyz(mesh, points, octree_levels=[2, 2, 2], method=method, max_distance=10,
-                           finalize=True)
+                           finalize=False)
 
     return mesh
 

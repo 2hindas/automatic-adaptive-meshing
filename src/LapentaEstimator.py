@@ -11,33 +11,39 @@ try:
 except ImportError:
     from SimPEG import SolverLU as Solver
 
-
+#Input of this function are the x-,y- and z-faces and the curl values of the electric field on the faces
+#Or x-,y- and z-edges and the values of the electric field
+#Radial basis function interpolation
 def interpolate_rbf(x, y, z, x_val, y_val, z_val):
-    x_curl_interpolated = Rbf(x[:, 0], x[:, 1], x[:, 2], x_val)
-    y_curl_interpolated = Rbf(y[:, 0], y[:, 1], y[:, 2], y_val)
-    z_curl_interpolated = Rbf(z[:, 0], z[:, 1], z[:, 2], z_val)
+    x_interpolated = Rbf(x[:, 0], x[:, 1], x[:, 2], x_val)
+    y_interpolated = Rbf(y[:, 0], y[:, 1], y[:, 2], y_val)
+    z_interpolated = Rbf(z[:, 0], z[:, 1], z[:, 2], z_val)
 
-    return x_curl_interpolated, y_curl_interpolated, z_curl_interpolated
+    return x_interpolated, y_interpolated, z_interpolated
 
-
+#Input of this function are the x-,y- and z-faces and the curl values of the electric field on the faces
+#Or x-,y- and z-edges and the values of the electric field
+#Nearest neighbour interpolation
 def interpolate_nearest(x, y, z, x_val, y_val, z_val):
-    x_curl_interpolated = NearestNDInterpolator(x, x_val)
-    y_curl_interpolated = NearestNDInterpolator(y, y_val)
-    z_curl_interpolated = NearestNDInterpolator(z, z_val)
+    x_interpolated = NearestNDInterpolator(x, x_val)
+    y_interpolated = NearestNDInterpolator(y, y_val)
+    z_interpolated = NearestNDInterpolator(z, z_val)
 
-    return x_curl_interpolated, y_curl_interpolated, z_curl_interpolated
+    return x_interpolated, y_interpolated, z_interpolated
 
-
+#Input of this function are the x-,y- and z-faces and the curl values of the electric field on the faces
+#Or x-,y- and z-edges and the values of the electric field
+#Linear interpolation
 def interpolate_linear(x, y, z, x_val, y_val, z_val):
-    x_curl_interpolated = LinearNDInterpolator(x, x_val)
-    y_curl_interpolated = LinearNDInterpolator(y, y_val)
-    z_curl_interpolated = LinearNDInterpolator(z, z_val)
+    x_interpolated = LinearNDInterpolator(x, x_val)
+    y_interpolated = LinearNDInterpolator(y, y_val)
+    z_interpolated = LinearNDInterpolator(z, z_val)
 
-    return x_curl_interpolated, y_curl_interpolated, z_curl_interpolated
+    return x_interpolated, y_interpolated, z_interpolated
 
 
 def estimate_curl_electric_field(mesh, survey, model_map, model, interpolation='rbf', frequency=1.0,
-                                 omega=2 * np.pi):
+                                 omega=2 * np.pi,parameter='resistivity'):
     x_faces = mesh.faces_x
     y_faces = mesh.faces_y
     z_faces = mesh.faces_z
@@ -48,14 +54,24 @@ def estimate_curl_electric_field(mesh, survey, model_map, model, interpolation='
 
     # Solution by forward modelling for magnetic flux density and electric field
     # This uses a rhoMap (resistivity)
-    simulation = fdem.simulation.Simulation3DMagneticFluxDensity(
-        mesh, survey=survey, rhoMap=model_map, Solver=Solver
-    )
-
-    simulationelectricfield = fdem.simulation.Simulation3DElectricField(
-        mesh, survey=survey, rhoMap=model_map, Solver=Solver
-    )
-
+    if parameter == 'resistivity':
+        simulation = fdem.simulation.Simulation3DMagneticFluxDensity(
+            mesh, survey=survey, rhoMap=model_map, Solver=Solver
+        )
+    
+        simulationelectricfield = fdem.simulation.Simulation3DElectricField(
+            mesh, survey=survey, rhoMap=model_map, Solver=Solver
+        )
+    # This uses a sigmaMap (conductivity)
+    else:
+        simulation = fdem.simulation.Simulation3DMagneticFluxDensity(
+            mesh, survey=survey, sigmaMap=model_map, Solver=Solver
+        )
+    
+        simulationelectricfield = fdem.simulation.Simulation3DElectricField(
+            mesh, survey=survey, sigmaMap=model_map, Solver=Solver
+        )
+        
     # Compute magnetic flux density
     fields = simulation.fields(model)
     magnetic_flux_density = fields[:, 'bSolution']
@@ -112,12 +128,11 @@ def compute_cell_error(cell, curl_x, curl_y, curl_z, ef_x, ef_y, ef_z):
     return error
 
 
-def estimate_error(mesh, survey, model_map, model, search_area, interpolation='rbf', frequency=1.0,
-                   omega=2 * np.pi, refine_percentage=0.05):
-    curl_x, curl_y, curl_z, ef_x, ef_y, ef_z = estimate_curl_electric_field(mesh, survey, model_map,
-                                                                            model, interpolation,
-                                                                            frequency, omega)
-
+def estimate_error(mesh, survey, model_map, model, search_area, curl_x, curl_y, curl_z
+                   , ef_x, ef_y, ef_z
+                   , interpolation='rbf', frequency=1.0,
+                   omega=2 * np.pi, refine_percentage=0.05,parameter='resistivity'):
+    
     cell_errors = []
     for cell in search_area:
         error = compute_cell_error(cell, curl_x, curl_y, curl_z, ef_x, ef_y, ef_z)
