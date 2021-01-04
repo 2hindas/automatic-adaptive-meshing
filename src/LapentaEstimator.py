@@ -7,7 +7,7 @@ from scipy.interpolate import Rbf, LinearNDInterpolator, NearestNDInterpolator
 import numdifftools as nd
 from src.Meshing import refine_at_locations, create_octree_mesh
 from SimPEG.utils import surface2ind_topo
-from src.Setup import search_area_receivers, search_area_object
+from src.Utils import search_area_receivers, search_area_object
 from SimPEG import maps
 
 try:
@@ -165,9 +165,8 @@ def iterator(mesh, domain, surface, cell_width, objct, create_surface
     def ef_old_interpolator(x):
         return np.array([ef_old_x(*x), ef_old_y(*x), ef_old_z(*x)])
 
-    # -------------------------------------------------------------------------------------------------
     while diff > 0.01 and i < lim_iterations:
-        # -------------------------------------------------------------------------------------------------
+
         # Define search areas
         search_area_obj = search_area_object(mesh, objct, factor=factor_object)
         search_area_receiv = search_area_receivers(mesh, receiver_locations,

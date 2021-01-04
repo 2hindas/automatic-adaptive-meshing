@@ -42,11 +42,11 @@ def search_area_object(mesh, objct, factor=2):
     Lower_Z = min(objct[:, 2])  # Lower Z
     Upper_Z = max(objct[:, 2])  # Upper Z
     search_area = cells[(cells[:, 0] > (Left_X - factor * cell_width_X)) & (
-                cells[:, 0] < (Right_X + factor * cell_width_X))
+            cells[:, 0] < (Right_X + factor * cell_width_X))
                         & (cells[:, 1] > (Left_Y - factor * cell_width_Y)) & (
-                                    cells[:, 1] < (Right_Y + factor * cell_width_Y))
+                                cells[:, 1] < (Right_Y + factor * cell_width_Y))
                         & (cells[:, 2] > (Lower_Z - factor * cell_width_Z)) & (
-                                    cells[:, 2] < (Upper_Z + factor * cell_width_Z))]
+                                cells[:, 2] < (Upper_Z + factor * cell_width_Z))]
 
     return search_area
 
@@ -65,10 +65,21 @@ def search_area_receivers(mesh, receiver_locations, factor=3):
     Lower_Z = min(receiver_locations[:, 2])  # Lower Z
     Upper_Z = max(receiver_locations[:, 2])  # Upper Z
     search_area = cells[(cells[:, 0] > (Left_X - factor * cell_width_X)) & (
-                cells[:, 0] < (Right_X + factor * cell_width_X))
+            cells[:, 0] < (Right_X + factor * cell_width_X))
                         & (cells[:, 1] > (Left_Y - factor * cell_width_Y)) & (
-                                    cells[:, 1] < (Right_Y + factor * cell_width_Y))
+                                cells[:, 1] < (Right_Y + factor * cell_width_Y))
                         & (cells[:, 2] > (Lower_Z - factor * cell_width_Z)) & (
-                                    cells[:, 2] < (Upper_Z + factor * cell_width_Z))]
+                                cells[:, 2] < (Upper_Z + factor * cell_width_Z))]
 
     return search_area
+
+
+def get_ind_block(mesh, ind_active, x, y, z):
+    return (
+            (mesh.gridCC[ind_active, 0] <= max(x))
+            & (mesh.gridCC[ind_active, 0] >= min(x))
+            & (mesh.gridCC[ind_active, 1] <= max(y))
+            & (mesh.gridCC[ind_active, 1] >= min(y))
+            & (mesh.gridCC[ind_active, 2] <= max(z))
+            & (mesh.gridCC[ind_active, 2] >= min(z))
+    )

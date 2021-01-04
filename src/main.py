@@ -5,7 +5,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 from discretize.utils import mkvc
 import numpy as np
 import src.Meshing as M
-import src.Setup as Set
+import src.Utils as utils
 from SimPEG.utils import surface2ind_topo
 from SimPEG import maps
 from src.LapentaEstimator import iterator
@@ -41,15 +41,15 @@ frequencies = [1.0]  # Frequency (Hz)
 omegas = [2.0 * np.pi]  # Radial frequency (Hz)
 print("Number of receivers", len(receiver_locations))
 
-survey = Set.define_survey(frequencies, receiver_locations, source_locations, ntx)
+survey = utils.define_survey(frequencies, receiver_locations, source_locations, ntx)
 
-#Refine at certain locations
-box_surface = M.create_box_surface(x, y, z, 'x',0)
-M.refine_at_locations(mesh, box_surface)
+# Refine at certain locations
+# M.refine_at_locations(mesh, surface)
 M.refine_at_locations(mesh, source_locations)
 M.refine_at_locations(mesh, receiver_locations)
 
 mesh.finalize()
+
 print(mesh)
 
 print("Total number of cells", mesh.nC)
@@ -59,6 +59,7 @@ print("Total number of cell edges", mesh.n_edges)
 # Resistivity in Ohm m
 res_background = 1.0
 res_block = 100.0
+
 # Conductivity in S/m
 conductivity_background = 1 / 100.0
 conductivity_block = 1 / 1.0
@@ -71,26 +72,17 @@ model_map = maps.InjectActiveCells(mesh, ind_active, res_background)
 
 # Define model. Models in SimPEG are vector arrays
 model = res_background * np.ones(ind_active.sum())
-#Must define this as a function
-def ind_block(mesh,ind_active):
-    ind_block = (
-            (mesh.gridCC[ind_active, 0] <= 600.0)
-            & (mesh.gridCC[ind_active, 0] >= 200.0)
-            & (mesh.gridCC[ind_active, 1] <= 500.0)
-            & (mesh.gridCC[ind_active, 1] >= -500.0)
-            & (mesh.gridCC[ind_active, 2] <= -800.0)
-            & (mesh.gridCC[ind_active, 2] >= -1000.0)
-    )
-    return ind_block
-model[ind_block(mesh,ind_active)] = res_block
 
-mesh = iterator(mesh, domain, surface, cell_width, block, M.create_box_surface,x,y,z
+ind_block = utils.get_ind_block(mesh, ind_active, x, y, z)
+model[ind_block] = res_block
+
+mesh = iterator(mesh, domain, surface, cell_width, block, M.create_box_surface, x, y, z
                 , receiver_locations, source_locations, survey
                 , res_background, res_block, model_map
-                , model, ind_block,lim_iterations=4)
+                , model, ind_block, lim_iterations=3)
 print(mesh)
 
-# '''
+'''
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.scatter(cells_to_refine[:, 0], cells_to_refine[:, 1], cells_to_refine[:, 2])
@@ -99,4 +91,4 @@ ax.set_ylabel('Y')
 ax.set_zlabel('Z')
 plt.show()
 # refine cells
-# '''
+'''
