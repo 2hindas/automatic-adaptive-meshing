@@ -4,11 +4,11 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 from discretize.utils import mkvc
 import numpy as np
-import src.Meshing as M
-import src.Utils as utils
+import Meshing as M
+import Utils as utils
 from SimPEG.utils import surface2ind_topo
 from SimPEG import maps
-from src.LapentaEstimator import iterator
+from LapentaEstimator import iterator
 
 domain = ((-500, 4500), (-1000, 1000), (-1200, 200))
 
@@ -19,11 +19,12 @@ surface = np.c_[mkvc(xx), mkvc(yy), mkvc(zz)]
 
 x = np.linspace(200, 600, 30)
 y = np.linspace(-500, 500, 30)
-z = np.linspace(-1000, -800, 30)
+z = np.linspace(-1000, -800,30)
 xp, yp, zp = np.meshgrid(x, y, z)
 block = np.c_[mkvc(xp), mkvc(yp), mkvc(zp)]
+block_surface = M.create_box_surface(x,y,z,'x',0)
 cell_width = 50
-mesh = M.create_octree_mesh(domain, cell_width, block, 'surface')
+mesh = M.create_octree_mesh(domain, cell_width, block_surface, 'surface')
 
 # plot_mesh_slice(mesh, 'z', 0)
 
@@ -75,12 +76,13 @@ model = res_background * np.ones(ind_active.sum())
 
 ind_block = utils.get_ind_block(mesh, ind_active, x, y, z)
 model[ind_block] = res_block
-
+'''
 mesh = iterator(mesh, domain, surface, cell_width, block, M.create_box_surface, x, y, z
                 , receiver_locations, source_locations, survey
                 , res_background, res_block, model_map
                 , model, ind_block, lim_iterations=3)
 print(mesh)
+'''
 
 '''
 fig = plt.figure()

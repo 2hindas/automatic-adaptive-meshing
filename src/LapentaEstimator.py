@@ -5,9 +5,9 @@ import numpy as np
 import SimPEG.electromagnetics.frequency_domain as fdem
 from scipy.interpolate import Rbf, LinearNDInterpolator, NearestNDInterpolator
 import numdifftools as nd
-from src.Meshing import refine_at_locations, create_octree_mesh
+from Meshing import refine_at_locations, create_octree_mesh
 from SimPEG.utils import surface2ind_topo
-from src.Utils import search_area_receivers, search_area_object
+from Utils import search_area_receivers, search_area_object, get_ind_block, get_ind_sphere
 from SimPEG import maps
 
 try:
@@ -153,7 +153,7 @@ def iterator(mesh, domain, surface, cell_width, objct, create_surface
              , x_object, y_object, z_object
              , receiver_locations, source_locations, survey, par_background, par_object,
              model_map, model, ind_object, frequency=1, omega=2 * np.pi
-             , parameter='resistivity', interpolation='rbf', type_object='box'
+             , parameter='resistivity', interpolation='rbf', type_object='block'
              , lim_iterations=5, factor_object=2, factor_receiver=3
              , refine_percentage=0.05, axis='x', degrees_rad=0, radius=1):
     diff = 10
@@ -218,7 +218,7 @@ def iterator(mesh, domain, surface, cell_width, objct, create_surface
                                                    , parameter=parameter)
         # Refine the mesh
         mesh = create_octree_mesh(domain, cell_width, objct, 'surface')
-        if type_object == 'box':
+        if type_object == 'block':
             surface_object = create_surface(x_object, y_object, z_object, axis, degrees_rad)
         if type_object == 'sphere':
             surface_object = create_surface(x_object, y_object, z_object, radius)
@@ -239,6 +239,10 @@ def iterator(mesh, domain, surface, cell_width, objct, create_surface
 
         # Define model. Models in SimPEG are vector arrays
         model = par_background * np.ones(ind_active.sum())
-        model[ind_object(mesh, ind_active)] = par_object
+        if type_object == 'block':
+            ind_object = get_ind_block(mesh, ind_active, x_object, y_object, z_object)
+        if type_object == 'sphere':
+            ind_object = get_ind_sphere(mesh, ind_active, x_object, y_object, z_object,radius)
+        model[ind_object] = par_object
         i += 1
     return mesh

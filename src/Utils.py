@@ -83,3 +83,12 @@ def get_ind_block(mesh, ind_active, x, y, z):
             & (mesh.gridCC[ind_active, 2] <= max(z))
             & (mesh.gridCC[ind_active, 2] >= min(z))
     )
+def get_ind_sphere(mesh, ind_active, x_center, y_center, z_center, radius):
+    return (
+            (mesh.gridCC[ind_active, 0] <= x_center+radius)
+            & (mesh.gridCC[ind_active, 0] >= x_center-radius)
+            & (mesh.gridCC[ind_active, 1] <= y_center+radius)
+            & (mesh.gridCC[ind_active, 1] >= y_center-radius)
+            & (mesh.gridCC[ind_active, 2] <= z_center+radius)
+            & (mesh.gridCC[ind_active, 2] >= z_center-radius)
+    )
