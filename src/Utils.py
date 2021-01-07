@@ -2,6 +2,8 @@ import SimPEG.electromagnetics.frequency_domain as fdem
 
 
 def define_survey(frequencies, receiver_locations, source_locations, num_transmitters):
+    """Defines a survey of a model with the receivers and the transmitters."""
+
     source_list = []
     for i in range(len(frequencies)):
         for j in range(num_transmitters):
@@ -29,8 +31,9 @@ def define_survey(frequencies, receiver_locations, source_locations, num_transmi
 
 
 def search_area_object(mesh, objct, factor=2):
-    # Factor determines the search range around the object
-    # Search area is always a rectangle, regardless of the shape of the object
+    """Defines the search are in a mesh for a given object using a given factor that determines the
+    search range."""
+
     cells = mesh.cell_centers
     cell_width_X = min(mesh.h[0])  # minimum cell width in x-direction
     cell_width_Y = min(mesh.h[1])  # minimum cell width in y-direction
@@ -52,8 +55,9 @@ def search_area_object(mesh, objct, factor=2):
 
 
 def search_area_receivers(mesh, receiver_locations, factor=3):
-    # Factor determines the search range around the object
-    # Search area is always a rectangle, regardless of the shape of the object
+    """Defines the search area in a mesh for given receivers using a given factor that determines
+    the search range."""
+
     cells = mesh.cell_centers
     cell_width_X = min(mesh.h[0])  # minimum cell width in x-direction
     cell_width_Y = min(mesh.h[1])  # minimum cell width in y-direction
@@ -74,21 +78,27 @@ def search_area_receivers(mesh, receiver_locations, factor=3):
     return search_area
 
 
-def get_ind_block(mesh, ind_active, x, y, z):
+def get_ind_block(mesh, ind_active, coordinates):
+    """Retreives the indices of a block object coordinates in a mesh."""
+
     return (
-            (mesh.gridCC[ind_active, 0] <= max(x))
-            & (mesh.gridCC[ind_active, 0] >= min(x))
-            & (mesh.gridCC[ind_active, 1] <= max(y))
-            & (mesh.gridCC[ind_active, 1] >= min(y))
-            & (mesh.gridCC[ind_active, 2] <= max(z))
-            & (mesh.gridCC[ind_active, 2] >= min(z))
+            (mesh.gridCC[ind_active, 0] <= coordinates[0][1])
+            & (mesh.gridCC[ind_active, 0] >= coordinates[0][0])
+            & (mesh.gridCC[ind_active, 1] <= coordinates[1][1])
+            & (mesh.gridCC[ind_active, 1] >= coordinates[1][0])
+            & (mesh.gridCC[ind_active, 2] <= coordinates[2][1])
+            & (mesh.gridCC[ind_active, 2] >= coordinates[2][0])
     )
-def get_ind_sphere(mesh, ind_active, x_center, y_center, z_center, radius):
+
+
+def get_ind_sphere(mesh, ind_active, origin, radius):
+    """Retreives the indices of a sphere object coordintes in a mesh."""
+
     return (
-            (mesh.gridCC[ind_active, 0] <= x_center+radius)
-            & (mesh.gridCC[ind_active, 0] >= x_center-radius)
-            & (mesh.gridCC[ind_active, 1] <= y_center+radius)
-            & (mesh.gridCC[ind_active, 1] >= y_center-radius)
-            & (mesh.gridCC[ind_active, 2] <= z_center+radius)
-            & (mesh.gridCC[ind_active, 2] >= z_center-radius)
+            (mesh.gridCC[ind_active, 0] <= origin[0] + radius)
+            & (mesh.gridCC[ind_active, 0] >= origin[0] - radius)
+            & (mesh.gridCC[ind_active, 1] <= origin[1] + radius)
+            & (mesh.gridCC[ind_active, 1] >= origin[1] - radius)
+            & (mesh.gridCC[ind_active, 2] <= origin[2] + radius)
+            & (mesh.gridCC[ind_active, 2] >= origin[2] - radius)
     )

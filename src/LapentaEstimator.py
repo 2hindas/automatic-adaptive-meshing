@@ -5,9 +5,9 @@ import numpy as np
 import SimPEG.electromagnetics.frequency_domain as fdem
 from scipy.interpolate import Rbf, LinearNDInterpolator, NearestNDInterpolator
 import numdifftools as nd
-from Meshing import refine_at_locations, create_octree_mesh
+from src.Meshing import refine_at_locations, create_octree_mesh
 from SimPEG.utils import surface2ind_topo
-from Utils import search_area_receivers, search_area_object, get_ind_block, get_ind_sphere
+from src.Utils import search_area_receivers, search_area_object, get_ind_block, get_ind_sphere
 from SimPEG import maps
 
 try:
@@ -16,10 +16,29 @@ except ImportError:
     from SimPEG import SolverLU as Solver
 
 
-# Input of this function are the x-,y- and z-faces and the curl values of the electric field on the faces
-# Or x-,y- and z-edges and the values of the electric field
-# Radial basis function interpolation
 def interpolate_rbf(x, y, z, x_val, y_val, z_val):
+    """Radial basis function interpolation.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        x-faces or x-edges of a mesh
+    y : np.ndarray
+        y-faces or y-edges of a mesh
+    z : np.ndarray
+        z-faces or z-edges of a mesh
+    x_val : np.ndarray
+        curl values or electric field values in the x-direction
+    y_val : np.ndarray
+        curl values or electric field values in the y-direction
+    z_val : np.ndarray
+        curl values or electric field values in the z-direction
+
+    Returns
+    -------
+    scipy.interpolate.rbf.Rbf
+        a radial basis function interpolation object
+    """
     x_interpolated = Rbf(x[:, 0], x[:, 1], x[:, 2], x_val)
     y_interpolated = Rbf(y[:, 0], y[:, 1], y[:, 2], y_val)
     z_interpolated = Rbf(z[:, 0], z[:, 1], z[:, 2], z_val)
@@ -27,10 +46,29 @@ def interpolate_rbf(x, y, z, x_val, y_val, z_val):
     return x_interpolated, y_interpolated, z_interpolated
 
 
-# Input of this function are the x-,y- and z-faces and the curl values of the electric field on the faces
-# Or x-,y- and z-edges and the values of the electric field
-# Nearest neighbour interpolation
 def interpolate_nearest(x, y, z, x_val, y_val, z_val):
+    """Neirest neighbour interpolation.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        x-faces or x-edges of a mesh
+    y : np.ndarray
+        y-faces or y-edges of a mesh
+    z : np.ndarray
+        z-faces or z-edges of a mesh
+    x_val : np.ndarray
+        curl values or electric field values in the x-direction
+    y_val : np.ndarray
+        curl values or electric field values in the y-direction
+    z_val : np.ndarray
+        curl values or electric field values in the z-direction
+
+    Returns
+    -------
+    scipy.interpolate.ndgriddata.NearestNDInterpolator
+        a neirest neighbour interpolation object
+    """
     x_interpolated = NearestNDInterpolator(x, x_val)
     y_interpolated = NearestNDInterpolator(y, y_val)
     z_interpolated = NearestNDInterpolator(z, z_val)
@@ -38,10 +76,30 @@ def interpolate_nearest(x, y, z, x_val, y_val, z_val):
     return x_interpolated, y_interpolated, z_interpolated
 
 
-# Input of this function are the x-,y- and z-faces and the curl values of the electric field on the faces
-# Or x-,y- and z-edges and the values of the electric field
-# Linear interpolation
 def interpolate_linear(x, y, z, x_val, y_val, z_val):
+    """Linear interpolation.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        x-faces or x-edges of a mesh
+    y : np.ndarray
+        y-faces or y-edges of a mesh
+    z : np.ndarray
+        z-faces or z-edges of a mesh
+    x_val : np.ndarray
+        curl values or electric field values in the x-direction
+    y_val : np.ndarray
+        curl values or electric field values in the y-direction
+    z_val : np.ndarray
+        curl values or electric field values in the z-direction
+
+    Returns
+    -------
+    scipy.interpolate.interpnd.LinearNDInterpolator
+        a linear interpolation object
+    """
+
     x_interpolated = LinearNDInterpolator(x, x_val)
     y_interpolated = LinearNDInterpolator(y, y_val)
     z_interpolated = LinearNDInterpolator(z, z_val)
@@ -51,6 +109,8 @@ def interpolate_linear(x, y, z, x_val, y_val, z_val):
 
 def estimate_curl_electric_field(mesh, survey, model_map, model, interpolation='rbf', frequency=1.0,
                                  omega=2 * np.pi, parameter='resistivity'):
+    """Interpolates the curl and the electric field values in the mesh."""
+
     x_faces = mesh.faces_x
     y_faces = mesh.faces_y
     z_faces = mesh.faces_z
@@ -121,6 +181,8 @@ def estimate_curl_electric_field(mesh, survey, model_map, model, interpolation='
 
 
 def compute_cell_error(cell, curl_x, curl_y, curl_z, ef_x, ef_y, ef_z):
+    """Computes the error in a given cell of a mesh"""
+
     def ef_interpolator(x):
         return np.array([ef_x(*x), ef_y(*x), ef_z(*x)])
 
@@ -134,10 +196,10 @@ def compute_cell_error(cell, curl_x, curl_y, curl_z, ef_x, ef_y, ef_z):
     return error
 
 
-def estimate_error(mesh, survey, model_map, model, search_area, curl_x, curl_y, curl_z
-                   , ef_x, ef_y, ef_z
-                   , interpolation='rbf', frequency=1.0,
-                   omega=2 * np.pi, refine_percentage=0.05, parameter='resistivity'):
+def estimate_error(search_area, curl_x, curl_y, curl_z
+                   , ef_x, ef_y, ef_z,
+                   refine_percentage=0.05):
+    """Estimates the error in a predefined search area in a mesh"""
     cell_errors = []
     for cell in search_area:
         error = compute_cell_error(cell, curl_x, curl_y, curl_z, ef_x, ef_y, ef_z)
@@ -150,12 +212,15 @@ def estimate_error(mesh, survey, model_map, model, search_area, curl_x, curl_y, 
 
 
 def iterator(mesh, domain, surface, cell_width, objct, create_surface
-             , x_object, y_object, z_object
+             , coordinates
              , receiver_locations, source_locations, survey, par_background, par_object,
              model_map, model, ind_object, frequency=1, omega=2 * np.pi
              , parameter='resistivity', interpolation='rbf', type_object='block'
              , lim_iterations=5, factor_object=2, factor_receiver=3
              , refine_percentage=0.05, axis='x', degrees_rad=0, radius=1):
+    """An iteration scheme that implements a Lapenta error estimator to adaptively refine
+    a mesh, in order to reduce the error of the numerical solution."""
+
     diff = 10
     i = 0
 
@@ -200,28 +265,22 @@ def iterator(mesh, domain, surface, cell_width, objct, create_surface
         ef_old_z = ef_z
 
         # Define cells to refine near object
-        cells_to_refine_object = estimate_error(mesh, survey, model_map, model, search_area_obj
+        cells_to_refine_object = estimate_error(search_area_obj
                                                 , curl_x, curl_y, curl_z
                                                 , ef_x, ef_y, ef_z
-                                                , interpolation=interpolation
-                                                , frequency=frequency, omega=omega
-                                                , refine_percentage=refine_percentage
-                                                , parameter=parameter)
+                                                , refine_percentage=refine_percentage)
         # Define cells to refine near receivers
-        cells_to_refine_receivers = estimate_error(mesh, survey, model_map, model,
-                                                   search_area_receiv
+        cells_to_refine_receivers = estimate_error(search_area_receiv
                                                    , curl_x, curl_y, curl_z
                                                    , ef_x, ef_y, ef_z
-                                                   , interpolation=interpolation
-                                                   , frequency=frequency, omega=omega
-                                                   , refine_percentage=refine_percentage
-                                                   , parameter=parameter)
+                                                   , refine_percentage=refine_percentage)
         # Refine the mesh
         mesh = create_octree_mesh(domain, cell_width, objct, 'surface')
         if type_object == 'block':
-            surface_object = create_surface(x_object, y_object, z_object, axis, degrees_rad)
+            surface_object = create_surface(coordinates, cell_width, axis, degrees_rad)
+
         if type_object == 'sphere':
-            surface_object = create_surface(x_object, y_object, z_object, radius)
+            surface_object = create_surface(coordinates, radius)
         else:
             pass
         refine_at_locations(mesh, surface_object)
@@ -240,9 +299,11 @@ def iterator(mesh, domain, surface, cell_width, objct, create_surface
         # Define model. Models in SimPEG are vector arrays
         model = par_background * np.ones(ind_active.sum())
         if type_object == 'block':
-            ind_object = get_ind_block(mesh, ind_active, x_object, y_object, z_object)
+            ind_object = get_ind_block(mesh, ind_active, coordinates)
         if type_object == 'sphere':
-            ind_object = get_ind_sphere(mesh, ind_active, x_object, y_object, z_object,radius)
+            ind_object = get_ind_sphere(mesh, ind_active, coordinates, radius)
+
         model[ind_object] = par_object
         i += 1
+
     return mesh

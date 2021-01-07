@@ -4,29 +4,23 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 from discretize.utils import mkvc
 import numpy as np
-import Meshing as M
-import Utils as utils
+import src.Meshing as M
+import src.Utils as utils
 from SimPEG.utils import surface2ind_topo
 from SimPEG import maps
-from LapentaEstimator import iterator
+from src.LapentaEstimator import iterator
+
 
 domain = ((-500, 4500), (-1000, 1000), (-1200, 200))
+cell_width = 50
 
-# Surface coordinates
 xx, yy = np.meshgrid(np.linspace(-500, 4500, 101), np.linspace(-1000, 1000, 101))
 zz = np.zeros(np.shape(xx))
 surface = np.c_[mkvc(xx), mkvc(yy), mkvc(zz)]
 
-x = np.linspace(200, 600, 30)
-y = np.linspace(-500, 500, 30)
-z = np.linspace(-1000, -800,30)
-xp, yp, zp = np.meshgrid(x, y, z)
-block = np.c_[mkvc(xp), mkvc(yp), mkvc(zp)]
-block_surface = M.create_box_surface(x,y,z,'x',0)
-cell_width = 50
-mesh = M.create_octree_mesh(domain, cell_width, block_surface, 'surface')
-
-# plot_mesh_slice(mesh, 'z', 0)
+box_coordinates = ((200, 600), (-500, 500), (-1000, -800))
+box_surface = M.create_box_surface(box_coordinates, cell_width, 'x', 0)
+mesh = M.create_octree_mesh(domain, cell_width, box_surface)
 
 # Defining transmitter location
 xtx, ytx, ztx = np.meshgrid([0], [0], [0])
@@ -45,13 +39,16 @@ print("Number of receivers", len(receiver_locations))
 survey = utils.define_survey(frequencies, receiver_locations, source_locations, ntx)
 
 # Refine at certain locations
-# M.refine_at_locations(mesh, surface)
 M.refine_at_locations(mesh, source_locations)
 M.refine_at_locations(mesh, receiver_locations)
 
 mesh.finalize()
 
-print(mesh)
+# for i in range(0, 60):
+#     M.plot_mesh_slice(mesh, 'z', i, save=True)
+# exit()
+#
+# print(mesh)
 
 print("Total number of cells", mesh.nC)
 print("Total number of cell faces", mesh.n_faces)
@@ -74,15 +71,14 @@ model_map = maps.InjectActiveCells(mesh, ind_active, res_background)
 # Define model. Models in SimPEG are vector arrays
 model = res_background * np.ones(ind_active.sum())
 
-ind_block = utils.get_ind_block(mesh, ind_active, x, y, z)
+ind_block = utils.get_ind_block(mesh, ind_active, box_coordinates)
 model[ind_block] = res_block
-'''
-mesh = iterator(mesh, domain, surface, cell_width, block, M.create_box_surface, x, y, z
+mesh = iterator(mesh, domain, surface, cell_width, box_surface, M.create_box_surface, box_coordinates
                 , receiver_locations, source_locations, survey
                 , res_background, res_block, model_map
-                , model, ind_block, lim_iterations=3)
+                , model, ind_block, lim_iterations=5)
+
 print(mesh)
-'''
 
 '''
 fig = plt.figure()
