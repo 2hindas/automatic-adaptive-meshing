@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Jan  9 14:40:02 2021
+
+@author: larslaheij
+"""
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -18,9 +25,10 @@ xx, yy = np.meshgrid(np.linspace(-500, 4500, 101), np.linspace(-1000, 1000, 101)
 zz = np.zeros(np.shape(xx))
 surface = np.c_[mkvc(xx), mkvc(yy), mkvc(zz)]
 
-box_coordinates = ((200, 600), (-500, 500), (-1000, -800))
-box_surface = M.create_box_surface(box_coordinates, cell_width, 'x', 0)
-mesh = M.create_octree_mesh(domain, cell_width, box_surface)
+sphere_origin = ((1000), (500), (-500))
+radius = 350
+sphere_surface = M.create_sphere_surface(sphere_origin,radius,101)
+mesh = M.create_octree_mesh(domain, cell_width, sphere_surface)
 
 # Defining transmitter location
 xtx, ytx, ztx = np.meshgrid([0], [0], [0])
@@ -75,15 +83,16 @@ model_map = maps.InjectActiveCells(mesh, ind_active, res_background)
 # Define model. Models in SimPEG are vector arrays
 model = res_background * np.ones(ind_active.sum())
 
-ind_block = utils.get_ind_block(mesh, ind_active, box_coordinates)
-model[ind_block] = res_block
+ind_sphere = utils.get_ind_sphere(mesh, ind_active, sphere_origin,radius)
+model[ind_sphere] = res_block
 
-mesh, Extest, Eytest, Eztest = iterator(mesh, domain, surface, cell_width, box_surface, box_coordinates
+mesh, ex, ey, ez = iterator(mesh, domain, surface, cell_width, sphere_surface, sphere_origin
                 , receiver_locations, source_locations, survey
                 , res_background, res_block, model_map
-                , model, ind_block, lim_iterations=1)
+                , model, ind_sphere, lim_iterations=5,radius=radius,type_object='sphere')
 
 print(mesh)
+
 
 
 '''

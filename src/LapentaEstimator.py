@@ -5,9 +5,9 @@ import numpy as np
 import SimPEG.electromagnetics.frequency_domain as fdem
 from scipy.interpolate import Rbf, LinearNDInterpolator, NearestNDInterpolator
 import numdifftools as nd
-from src.Meshing import refine_at_locations, create_octree_mesh
+from Meshing import refine_at_locations, create_octree_mesh
 from SimPEG.utils import surface2ind_topo
-from src.Utils import search_area_receivers, search_area_object, get_ind_block, get_ind_sphere
+from Utils import search_area_receivers, search_area_object, get_ind_block, get_ind_sphere
 from SimPEG import maps
 
 try:
@@ -186,7 +186,7 @@ def compute_cell_error(cell, curl_x, curl_y, curl_z, ef_x, ef_y, ef_z):
     def ef_interpolator(x):
         return np.array([ef_x(*x), ef_y(*x), ef_z(*x)])
 
-    jacobian = nd.Jacobian(ef_interpolator)(cell)
+    jacobian = nd.Jacobian(ef_interpolator,order=4)(cell)
     jacobian[np.isnan(jacobian)] = 0  # handle NaN-values in the jacobian
     curl = np.array([jacobian[2, 1] - jacobian[1, 2], jacobian[0, 2] -
                      jacobian[2, 0], jacobian[1, 0] - jacobian[0, 1]])
@@ -211,8 +211,7 @@ def estimate_error(search_area, curl_x, curl_y, curl_z
     return cells_to_refine
 
 
-def iterator(mesh, domain, surface, cell_width, objct, create_surface
-             , coordinates
+def iterator(mesh, domain, surface, cell_width, objct, coordinates
              , receiver_locations, source_locations, survey, par_background, par_object,
              model_map, model, ind_object, frequency=1, omega=2 * np.pi
              , parameter='resistivity', interpolation='rbf', type_object='block'
@@ -276,14 +275,6 @@ def iterator(mesh, domain, surface, cell_width, objct, create_surface
                                                    , refine_percentage=refine_percentage)
         # Refine the mesh
         mesh = create_octree_mesh(domain, cell_width, objct, 'surface')
-        if type_object == 'block':
-            surface_object = create_surface(coordinates, cell_width, axis, degrees_rad)
-
-        if type_object == 'sphere':
-            surface_object = create_surface(coordinates, radius)
-        else:
-            pass
-        refine_at_locations(mesh, surface_object)
         refine_at_locations(mesh, source_locations)
         refine_at_locations(mesh, receiver_locations)
         refine_at_locations(mesh, cells_to_refine_object)
@@ -306,4 +297,11 @@ def iterator(mesh, domain, surface, cell_width, objct, create_surface
         model[ind_object] = par_object
         i += 1
 
-    return mesh
+    return mesh, ef_x, ef_y, ef_z
+
+
+
+
+
+
+

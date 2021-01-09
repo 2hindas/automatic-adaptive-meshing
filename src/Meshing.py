@@ -33,10 +33,10 @@ def create_box_surface(coordinates, cellwidth, axis, degree_rad):
     z1 = coordinates[2][0]
     z2 = coordinates[2][1]
 
-    x_num = np.ceil((abs(x1-x2)) / cellwidth)
-    y_num = np.ceil((abs(y1-y2)) / cellwidth)
-    z_num = np.ceil((abs(z1-z2)) / cellwidth)
-
+    x_num = int(np.ceil((abs(x1-x2)) / cellwidth))
+    y_num = int(np.ceil((abs(y1-y2)) / cellwidth))
+    z_num = int(np.ceil((abs(z1-z2)) / cellwidth))
+    
     x_coords = np.linspace(x1, x2, x_num)
     y_coords = np.linspace(y1, y2, y_num)
     z_coords = np.linspace(z1, z2, z_num)
@@ -87,7 +87,7 @@ def create_sphere_surface(origin, radius, num_points):
 
 
 def create_octree_mesh(domain, cellwidth, points, method='surface'):
-    """Creates a list of coordinates of points on the surface of a sphere.
+    """Creates an octree mesh and refines at specified points.
 
         Parameters
         ----------
