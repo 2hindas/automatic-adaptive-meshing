@@ -222,6 +222,7 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
 
     diff = 10
     i = 0
+    av_diff_list = []
 
     def ef_interpolator(x):
         return np.array([ef_x(*x), ef_y(*x), ef_z(*x)])
@@ -230,6 +231,7 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
         return np.array([ef_old_x(*x), ef_old_y(*x), ef_old_z(*x)])
 
     while diff > 0.01 and i < lim_iterations:
+        #Maximum relative difference between current and previous iteration should fall below 1% in order to converge.
 
         # Define search areas
         search_area_obj = search_area_object(mesh, objct, factor=factor_object)
@@ -257,8 +259,9 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
                 form = np.abs(
                     (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
                 relative_difference_Efield.append(np.linalg.norm(form))
-            diff = max(relative_difference_Efield)
-            print("Maximum relative difference is ", diff)
+            diff = sum(relative_difference_Efield)/len(relative_difference_Efield)
+            av_diff_list.append([i,diff])
+            print("Average relative difference is ", diff)
         ef_old_x = ef_x
         ef_old_y = ef_y
         ef_old_z = ef_z
@@ -297,7 +300,7 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
         model[ind_object] = par_object
         i += 1
 
-    return mesh, ef_x, ef_y, ef_z
+    return mesh, ef_x, ef_y, ef_z, np.array(av_diff_list)
 
 
 

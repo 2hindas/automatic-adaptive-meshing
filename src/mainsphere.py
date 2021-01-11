@@ -16,17 +16,17 @@ import Utils as utils
 from SimPEG.utils import surface2ind_topo
 from SimPEG import maps
 from LapentaEstimator import iterator
+import matplotlib.pyplot as plt
 
+domain = ((-500, 4500), (-2000, 2000), (-2500, 200))
+cell_width = 100 #probeer vanavond 75 + 200 iterations
 
-domain = ((-500, 4500), (-1000, 1000), (-1200, 200))
-cell_width = 50
-
-xx, yy = np.meshgrid(np.linspace(-500, 4500, 101), np.linspace(-1000, 1000, 101))
+xx, yy = np.meshgrid(np.linspace(-500, 4500, 101), np.linspace(-2000, 2000, 101))
 zz = np.zeros(np.shape(xx))
 surface = np.c_[mkvc(xx), mkvc(yy), mkvc(zz)]
 
-sphere_origin = ((1000), (500), (-500))
-radius = 350
+sphere_origin = ((1000), (500), (-1200))
+radius = 800
 sphere_surface = M.create_sphere_surface(sphere_origin,radius,101)
 mesh = M.create_octree_mesh(domain, cell_width, sphere_surface)
 
@@ -86,12 +86,18 @@ model = res_background * np.ones(ind_active.sum())
 ind_sphere = utils.get_ind_sphere(mesh, ind_active, sphere_origin,radius)
 model[ind_sphere] = res_block
 
-mesh, ex, ey, ez = iterator(mesh, domain, surface, cell_width, sphere_surface, sphere_origin
+mesh, ex, ey, ez, diff_list = iterator(mesh, domain, surface, cell_width, sphere_surface, sphere_origin
                 , receiver_locations, source_locations, survey
                 , res_background, res_block, model_map
-                , model, ind_sphere, lim_iterations=5,radius=radius,type_object='sphere')
+                , model, ind_sphere, lim_iterations=20,radius=radius,type_object='sphere')
+
 
 print(mesh)
+plt.figure(1)
+plt.plot(diff_list[:,0],diff_list[:,1])
+plt.xlabel('Number of iterations')
+plt.ylabel('Average relative difference curr. and prev. iteration')
+plt.title('Convergence of a sphere in an adaptive grid')
 
 
 
