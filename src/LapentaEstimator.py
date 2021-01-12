@@ -223,6 +223,8 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
     diff = 10
     i = 0
     av_diff_list = []
+    refine_at_object_list = []
+    refine_at_receivers_list = []
 
     def ef_interpolator(x):
         return np.array([ef_x(*x), ef_y(*x), ef_z(*x)])
@@ -260,7 +262,7 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
                     (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
                 relative_difference_Efield.append(np.linalg.norm(form))
             diff = sum(relative_difference_Efield)/len(relative_difference_Efield)
-            av_diff_list.append([i,diff])
+            av_diff_list.append([i+1,diff])
             print("Average relative difference is ", diff)
         ef_old_x = ef_x
         ef_old_y = ef_y
@@ -271,17 +273,21 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
                                                 , curl_x, curl_y, curl_z
                                                 , ef_x, ef_y, ef_z
                                                 , refine_percentage=refine_percentage)
+        refine_at_object_list.append(cells_to_refine_object)
         # Define cells to refine near receivers
         cells_to_refine_receivers = estimate_error(search_area_receiv
                                                    , curl_x, curl_y, curl_z
                                                    , ef_x, ef_y, ef_z
                                                    , refine_percentage=refine_percentage)
+        refine_at_receivers_list.append(cells_to_refine_receivers)
         # Refine the mesh
         mesh = create_octree_mesh(domain, cell_width, objct, 'surface')
         refine_at_locations(mesh, source_locations)
         refine_at_locations(mesh, receiver_locations)
-        refine_at_locations(mesh, cells_to_refine_object)
-        refine_at_locations(mesh, cells_to_refine_receivers)
+        for refo in refine_at_object_list:
+            refine_at_locations(mesh,refo)
+        for refr in refine_at_receivers_list:
+            refine_at_locations(mesh, refr)
         mesh.finalize()
 
         # Find cells that are active in the forward modeling (cells below surface)
@@ -299,6 +305,7 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
 
         model[ind_object] = par_object
         i += 1
+        print(i)
 
     return mesh, ef_x, ef_y, ef_z, np.array(av_diff_list)
 
