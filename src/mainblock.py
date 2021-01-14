@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Jan  9 14:40:02 2021
 
-@author: larslaheij
-"""
+
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -25,19 +21,18 @@ xx, yy = np.meshgrid(np.linspace(-500, 4500, 101), np.linspace(-2000, 2000, 101)
 zz = np.zeros(np.shape(xx))
 surface = np.c_[mkvc(xx), mkvc(yy), mkvc(zz)]
 
-sphere_origin = ((1000), (3000), (-1200))
-radius = 800
-sphere_surface = M.create_sphere_surface(sphere_origin,radius,101)
-mesh = M.create_octree_mesh(domain, cell_width, sphere_surface)
+box_coordinates = ((200, 600), (-500, 500), (-1000, -800))
+box_surface = M.create_box_surface(box_coordinates, cell_width, 'z', 15)
+mesh = M.create_octree_mesh(domain, cell_width, box_surface)
 
 # Defining transmitter location
 xtx, ytx, ztx = np.meshgrid([0], [0], [0])
 source_locations = np.c_[mkvc(xtx), mkvc(ytx), mkvc(ztx)]
 ntx = np.size(xtx)
 print("Number of transmitters", len(source_locations))
-#wider area around transmitter
-#xa, ya, za = np.meshgrid(np.linspace(-200,200,101), np.linspace(-200,200,101), np.linspace(-200,200,101))
-#wider_area = np.c_[mkvc(xa), mkvc(ya), mkvc(za)]
+# wider area around transmitter
+# xa, ya, za = np.meshgrid(np.linspace(-200,200,101), np.linspace(-200,200,101), np.linspace(-200,200,101))
+# wider_area = np.c_[mkvc(xa), mkvc(ya), mkvc(za)]
 
 # Define receiver locations
 N = 21
@@ -51,7 +46,7 @@ survey = utils.define_survey(frequencies, receiver_locations, source_locations, 
 
 # Refine at certain locations
 M.refine_at_locations(mesh, source_locations)
-#M.refine_at_locations(mesh,wider_area)
+# M.refine_at_locations(mesh,wider_area)
 M.refine_at_locations(mesh, receiver_locations)
 
 mesh.finalize()
@@ -59,7 +54,7 @@ mesh.finalize()
 # for i in range(0, 60):
 #     M.plot_mesh_slice(mesh, 'z', i, save=True)
 # exit()
-#
+
 print(mesh)
 
 print("Total number of cells", mesh.nC)
@@ -83,23 +78,30 @@ model_map = maps.InjectActiveCells(mesh, ind_active, res_background)
 # Define model. Models in SimPEG are vector arrays
 model = res_background * np.ones(ind_active.sum())
 
-ind_sphere = utils.get_ind_sphere(mesh, ind_active, sphere_origin,radius)
-model[ind_sphere] = res_block
+ind_block = utils.get_ind_block(mesh, ind_active, box_coordinates)
+model[ind_block] = res_block
 
-mesh, ex, ey, ez, diff_list = iterator(mesh, domain, surface, cell_width, sphere_surface, sphere_origin
-                , receiver_locations, source_locations, survey
-                , res_background, res_block, model_map
-                , model, ind_sphere, lim_iterations=10,radius=radius,interpolation='rbf',type_object='sphere')
-
+mesh, ex, ey, ez, diff_list = iterator(mesh, domain, surface, cell_width, box_surface,
+                                       box_coordinates
+                                       , receiver_locations, source_locations, survey
+                                       , res_background, res_block, model_map
+                                       , model, ind_block, lim_iterations=15, interpolation='rbf')
 
 print(mesh)
 plt.figure(1)
-plt.plot(diff_list[:,0],diff_list[:,1])
+plt.plot(diff_list[:, 0], diff_list[:, 1])
 plt.xlabel('Number of iterations')
 plt.ylabel('Average relative difference curr. and prev. iteration')
 plt.title('Convergence of a sphere in an adaptive grid')
+plt.show()
 
+print(diff_list[:, 0])
+print(diff_list[:, 1])
 
+np.savetxt('rotated_block_relative_diff.csv', diff_list, delimiter=',')
+
+for i in range(0, 4000):
+    M.plot_mesh_slice(mesh, 'z', i, save=True)
 
 '''
 fig = plt.figure()
