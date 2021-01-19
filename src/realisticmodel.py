@@ -22,7 +22,6 @@ from matplotlib.colors import LogNorm
 from scipy.interpolate import RectBivariateSpline
 plt.style.use('ggplot')
 
-
 ###############################################################################
 # Load Model
 # ----------
@@ -85,7 +84,6 @@ for i in range(mesh.shape_cells[0]):
 bathymetry = RectBivariateSpline(
         mesh.cell_centers_x, mesh.cell_centers_y, seafloor)
 
-
 ###############################################################################
 # Source and receiver positions
 # '''''''''''''''''''''''''''''
@@ -127,7 +125,7 @@ RX, RY = np.meshgrid(rec_x, rec_y, indexing='ij')
 RZ = bathymetry(rec_x, rec_y)
 rec = (RX.ravel(), RY.ravel(), RZ.ravel(), dip, azimuth)
 
-'''
+
 ###############################################################################
 # Create Survey
 # '''''''''''''
@@ -149,7 +147,7 @@ survey = emg3d.surveys.Survey(
 )
 
 # Let's have a look at the survey:
-survey
+print(survey)
 
 
 ###############################################################################
@@ -161,7 +159,7 @@ survey
 #
 # We can also look at a particular source or receiver, e.g.,
 
-survey.sources['Tx1']
+print(survey.sources['Tx0'])
 
 
 ###############################################################################
@@ -170,7 +168,7 @@ survey.sources['Tx1']
 #
 # QC model and survey
 # -------------------
-
+'''
 mesh.plot_3d_slicer(model.property_x, xslice=12000, yslice=7000,
                     pcolor_opts={'norm': LogNorm(vmin=0.3, vmax=200)})
 
@@ -185,8 +183,7 @@ axs[1].plot(survey.src_coords[0], survey.src_coords[1], 'r*')
 axs[2].plot(survey.src_coords[0], survey.src_coords[2], 'r*')
 axs[3].plot(survey.src_coords[2], survey.src_coords[1], 'r*')
 plt.show()
-
-
+'''
 ###############################################################################
 # Create a Simulation (to compute 'observed' data)
 # ------------------------------------------------
@@ -212,7 +209,7 @@ gopts = {
     'domain': (
         [survey.rec_coords[0].min()-100, survey.rec_coords[0].max()+100],
         [survey.rec_coords[1].min()-100, survey.rec_coords[1].max()+100],
-        [-5500, -2000]
+        [-5500, -1000]
     ),
 }
 
@@ -232,9 +229,6 @@ simulation = emg3d.simulations.Simulation(
 )
 
 # Let's QC our Simulation instance
-simulation
-
-'''
 ###############################################################################
 # Compute the data
 # ''''''''''''''''
@@ -249,9 +243,7 @@ simulation
 # This computes all results in parallel; in this case six models, three sources
 # times two frequencies. You can change the number of workers at any time by
 # setting ``simulation.max_workers``.
-'''
 simulation.compute(observed=True, min_offset=500)
-
 
 ###############################################################################
 # A ``Simulation`` has a few convenience functions, e.g.:
@@ -269,77 +261,30 @@ simulation.compute(observed=True, min_offset=500)
 # ``synthetic`` data is the actual computed data, the ``observed`` data, on the
 # other hand, has Gaussian noise added and is set to NaN's for positions too
 # close to the source.
-
-survey
-
-
 ###############################################################################
 # QC Data
 # -------
+Efield =simulation.get_efield('Tx0', 1.0)
 
-plt.figure()
-plt.title("Inline receivers for all sources")
-obs = simulation.data.observed[:, 1::3, :]
-syn = simulation.data.synthetic[:, 1::3, :]
-for i, src in enumerate(survey.sources.keys()):
-    for ii, freq in enumerate(survey.frequencies):
-        plt.plot(survey.rec_coords[0][1::3],
-                 abs(syn.loc[src, :, freq].data.real),
-                 "k-", lw=0.5)
-        plt.plot(survey.rec_coords[0][1::3],
-                 abs(syn.loc[src, :, freq].data.imag),
-                 "k-", lw=0.5)
-        plt.plot(survey.rec_coords[0][1::3],
-                 abs(obs.loc[src, :, freq].data.real),
-                 f"C{ii}.-",
-                 label=f"|Real|; freq={freq} Hz" if i == 0 else None
-                 )
-        plt.plot(survey.rec_coords[0][1::3],
-                 abs(obs.loc[src, :, freq].data.imag),
-                 f"C{ii}.--",
-                 label=f"|Imag|; freq={freq} Hz" if i == 0 else None
-                 )
+comp_mesh = simulation.get_grid('Tx0', 1.0)
 
-plt.yscale('log')
-plt.legend(ncol=2, framealpha=1)
-plt.xlabel('x-coordinate (m)')
-plt.ylabel('$|E_x|$ (V/m)')
-plt.show()
+xedges = comp_mesh.edges_x
+yedges = comp_mesh.edges_y
+zedges = comp_mesh.edges_z
 
+Ex_inter = Efield[0:len(xedges)] #x-component of the electric field on the x-edges
+Ey_inter = Efield[len(xedges):len(xedges) + len(yedges)] #y-component of the electric field on the y-edges
+Ez_inter = Efield[
+           len(xedges) + len(yedges):len(xedges) + len(yedges) + len(zedges)] #z-component of the electric field on the z-edges
 
-###############################################################################
-# How to store surveys and simulations to disk
-# --------------------------------------------
-#
-# Survey and Simulations can store (and load) themselves to (from) disk.
-#
-# - A survey stores all sources, receivers, frequencies, and the observed data.
-# - A simulation stores the survey, the model, the synthetic data. (It can also
-#   store much more, such as all electric fields, source and frequency
-#   dependent meshes and models, etc. What it actually stores is defined by the
-#   parameter ``what``).
+xsearch = np.where((xedges[:,0]>0) & (xedges[:,0]<20000) & (xedges[:,1]>0) & (xedges[:,1]<20000) & (xedges[:,2]>-7000) & (xedges[:,2]<500))
+ysearch = np.where((yedges[:,0]>0) & (yedges[:,0]<20000) & (yedges[:,1]>0) & (yedges[:,1]<20000) & (yedges[:,2]>-7000) & (yedges[:,2]<500))
+zsearch = np.where((zedges[:,0]>0) & (zedges[:,0]<20000) & (zedges[:,1]>0) & (zedges[:,1]<20000) & (zedges[:,2]>-7000) & (zedges[:,2]<500))
 
-# Survey file name
-survey_fname = '../data/surveys/GemPy-II-survey-A.h5'
+Ex = np.take(Ex_inter,xsearch[0])
+Ey = np.take(Ey_inter,ysearch[0])
+Ez = np.take(Ez_inter,zsearch[0])
 
-# To store, run
-survey.to_file(survey_fname)  # .h5, .json, or .npz
-
-# To load, run
-# survey = emg3d.surveys.Survey.from_file(survey_fname)
-
-# In the same manner you could store and load the entire simulation:
-
-# Simulation file name
-# simulation_fname = file-name.ending  # for ending in [h5, json, npz]
-
-# To store, run
-# simulation.to_file(simulation_fname, what='results')
-
-# To load, run
-# simulation = emg3d.simulations.Simulation.from_file(simulation_fname)
-
-###############################################################################
-
-emg3d.Report()
-'''
+xedges = xedges[(xedges[:,0]>0) & (xedges[:,0]<20000) & (xedges[:,1]>0) & (xedges[:,1]<20000) & (xedges[:,2]>-7000) & (xedges[:,2]<500)]
+yedges = yedges[(yedges[:,0]>0) & (yedges[:,0]<20000) & (yedges[:,1]>0) & (yedges[:,1]<20000) & (yedges[:,2]>-7000) & (yedges[:,2]<500)]
+zedges = zedges[(zedges[:,0]>0) & (zedges[:,0]<20000) & (zedges[:,1]>0) & (zedges[:,1]<20000) & (zedges[:,2]>-7000) & (zedges[:,2]<500)]

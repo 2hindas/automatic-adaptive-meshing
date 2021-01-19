@@ -19,14 +19,14 @@ from LapentaEstimator import iterator
 import matplotlib.pyplot as plt
 
 domain = ((-500, 4500), (-2000, 2000), (-2500, 200))
-cell_width = 100 
+cell_width = 50 
 
 xx, yy = np.meshgrid(np.linspace(-500, 4500, 101), np.linspace(-2000, 2000, 101))
 zz = np.zeros(np.shape(xx))
 surface = np.c_[mkvc(xx), mkvc(yy), mkvc(zz)]
 
-sphere_origin = ((1000), (3000), (-1200))
-radius = 800
+sphere_origin = ((1000), (300), (-1200))
+radius = 600
 sphere_surface = M.create_sphere_surface(sphere_origin,radius,101)
 mesh = M.create_octree_mesh(domain, cell_width, sphere_surface)
 
@@ -85,11 +85,12 @@ model = res_background * np.ones(ind_active.sum())
 
 ind_sphere = utils.get_ind_sphere(mesh, ind_active, sphere_origin,radius)
 model[ind_sphere] = res_block
+'''
 
 mesh, ex, ey, ez, diff_list = iterator(mesh, domain, surface, cell_width, sphere_surface, sphere_origin
                 , receiver_locations, source_locations, survey
                 , res_background, res_block, model_map
-                , model, ind_sphere, lim_iterations=10,radius=radius,interpolation='rbf',type_object='sphere')
+                , model, ind_sphere, lim_iterations=20,radius=radius,interpolation='rbf',type_object='sphere')
 
 
 print(mesh)
@@ -98,7 +99,7 @@ plt.plot(diff_list[:,0],diff_list[:,1])
 plt.xlabel('Number of iterations')
 plt.ylabel('Average relative difference curr. and prev. iteration')
 plt.title('Convergence of a sphere in an adaptive grid')
-
+'''
 
 
 '''

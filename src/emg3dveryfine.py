@@ -76,14 +76,14 @@ for i in range(len(xedges)):
     relative_diff = np.abs((Ex[i]-Extest(*xedges[i]))/Ex[i])
     relative_difference_Efieldx.append(relative_diff)
 
-#Compute relative difference of octree mesh and tensor mesh (x-component on x-edges)
+#Compute relative difference of octree mesh and tensor mesh (y-component on y-edges)
 relative_difference_Efieldy = []
 for i in range(len(yedges)):
     # This equation is sensitive to catastrophic failure
     relative_diff = np.abs((Ey[i]-Eytest(*yedges[i]))/Ey[i])
     relative_difference_Efieldy.append(relative_diff)
     
-#Compute relative difference of octree mesh and tensor mesh (x-component on x-edges)
+#Compute relative difference of octree mesh and tensor mesh (z-component on z-edges)
 relative_difference_Efieldz = []
 for i in range(len(zedges)):
     # This equation is sensitive to catastrophic failure
