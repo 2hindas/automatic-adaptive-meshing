@@ -100,6 +100,27 @@ def search_area_sources(mesh, source_locations, factor=3):
 
     return search_area
 
+def search_area_landscape(mesh, domain,landscape,factor=3):
+    """Defines the search area in a mesh for given sources using a given factor that determines
+    the search range."""
+
+    cells = mesh.cell_centers
+    cell_width_Z = min(mesh.h[2])  # minimum cell width in z-direction
+    Left_X = domain[0][0]  # Left X
+    Right_X = domain[0][1]  # Right X
+    Left_Y = domain[1][0] # Left Y
+    Right_Y = domain[1][1]  # Right Y
+    Upper_Z = max(landscape[:, 2])  # Upper Z
+    Lower_Z = domain[2][0]  # Lower Z
+    search_area = cells[(cells[:, 0] > (Left_X)) & (
+            cells[:, 0] < (Right_X))
+                        & (cells[:, 1] > (Left_Y)) & (
+                                cells[:, 1] < (Right_Y))
+                        & (cells[:, 2] > (Lower_Z)) & (
+                                cells[:, 2] < (Upper_Z+factor*cell_width_Z))]
+
+    return search_area
+
 
 def get_ind_block(mesh, ind_active, coordinates):
     """Retreives the indices of a block object coordinates in a mesh."""

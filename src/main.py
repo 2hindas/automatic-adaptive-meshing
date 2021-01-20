@@ -77,13 +77,14 @@ model = res_background * np.ones(ind_active.sum())
 
 ind_block = utils.get_ind_block(mesh, ind_active, box_coordinates)
 model[ind_block] = res_block
-
-mesh, Extest, Eytest, Eztest = iterator(mesh, domain, surface, cell_width, box_surface, box_coordinates
+'''
+mesh, Extest, Eytest, Eztest, diff_list = iterator(mesh, domain, surface, cell_width, box_surface, box_coordinates
                 , receiver_locations, source_locations, survey
                 , res_background, res_block, model_map
                 , model, ind_block, lim_iterations=1)
 
 print(mesh)
+'''
 
 
 '''
