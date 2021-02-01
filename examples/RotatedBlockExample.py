@@ -12,7 +12,7 @@ from SimPEG import maps
 from src.ErrorEstimator import iterator
 
 # Domain
-domain = ((-500, 4500), (-2000, 2000), (-2500, 200))
+domain = ((0, 4000), (-500, 500), (-1200, -1000))
 cell_width = 50
 
 # Define the top geophysical surface
@@ -66,9 +66,8 @@ model[ind_block] = res_block
 mesh, ex, ey, ez, diff_list = iterator(mesh, domain, surface, cell_width, box_surface,
                                        box_coordinates
                                        , receiver_locations, source_locations, survey
-                                       , res_background, res_block, model_map
-                                       , model, ind_block, lim_iterations=15, interpolation='rbf',
-                                       axis=axis, degrees_rad=angle)
+                                       , res_background, res_block, ind_block, lim_iterations=15,
+                                       interpolation='rbf', axis=axis, degrees_rad=angle)
 
 # Print summary of the final mesh
 print(mesh)

@@ -65,9 +65,8 @@ model[ind_sphere] = res_block
 mesh, ex, ey, ez, diff_list = iterator(mesh, domain, surface, cell_width, sphere_surface,
                                        sphere_origin
                                        , receiver_locations, source_locations, survey
-                                       , res_background, res_block, model_map
-                                       , model, ind_sphere, lim_iterations=20, radius=radius,
-                                       interpolation='rbf', type_object='sphere')
+                                       , res_background, res_block, ind_sphere, lim_iterations=20,
+                                       radius=radius, interpolation='rbf', type_object='sphere')
 
 # Print summary of the final mesh
 print(mesh)
