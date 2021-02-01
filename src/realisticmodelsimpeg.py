@@ -65,7 +65,7 @@ print(mesh)
 
 ###############################################################################
 #Let's convert this tensor mesh into an adaptive octree mesh
-domain = ((0, 20000), (0, 20000), (-7000, 500))
+domain = ((9000, 19000), (2500, 12500), (-5500, -500))
 cell_width = 500 #minimum cell-width
 
 # Acquisition source frequencies (Hz)
@@ -88,6 +88,8 @@ seafloor = np.reshape(seafloor,(len(mesh.cell_centers_x)*len(mesh.cell_centers_y
 xseafloor, yseafloor = np.meshgrid(mesh.cell_centers_x,mesh.cell_centers_y)
 #seafloor x-, y- and z-coordinates, required for making the octree mesh
 seafloorxyz = np.c_[mkvc(xseafloor), mkvc(yseafloor), mkvc(seafloor)]
+seafloorxyz = seafloorxyz[(seafloorxyz[:,0]>9000) & ((seafloorxyz[:,0]<19000)) 
+                          & (seafloorxyz[:,1]>2500) & (seafloorxyz[:,1]<12500)]
 
 ##############################################################################
 # Defining transmitter location
@@ -102,10 +104,11 @@ print("Number of transmitters", len(source_locations))
 
 
 # Define receiver locations
-rec_x = np.arange(3, 18)*1e3
-rec_y = 1e3+6500 #only use middle line of receivers #np.arange(3)*1e3+6500
+rec_x = np.arange(11, 18)*1e3
+rec_y = np.arange(3)*1e3+6500
 RZ = bathymetry(rec_x, rec_y)
-xrx, yrx, zrx = rec_x, np.array(len(rec_x)*[rec_y]), RZ[:,0]
+RX, RY = np.meshgrid(rec_x, rec_y, indexing='ij')
+xrx, yrx, zrx = RX, RY, RZ
 receiver_locations = np.c_[mkvc(xrx), mkvc(yrx), mkvc(zrx)]
 print("Number of receivers", len(receiver_locations))
 
@@ -126,7 +129,6 @@ print(octreemesh)
 resshape = np.reshape(model.property_x.transpose(),(mesh.n_cells))
 resfunction = NearestNDInterpolator(mesh.cell_centers, resshape)
 ###############################################################################
-'''
 #plot the resistivity model
 mesh.plot_3d_slicer(model.property_x, xslice=12000, yslice=7000,
                     pcolor_opts={'norm': LogNorm(vmin=0.3, vmax=200)})
@@ -158,7 +160,7 @@ octreemesh, Extest, Eytest, Eztest, diff_list = iteratornonobject(octreemesh, do
                 , cell_width, seafloorxyz
                 , receiver_locations, source_locations, survey
                 , resfunction, model_map
-                , model, lim_iterations=10)
+                , model, lim_iterations=20)
 ##############################################################################
 #print final octree mesh (converged solution)
 print(octreemesh)
@@ -168,8 +170,14 @@ plt.plot(diff_list[:,0],diff_list[:,1])
 plt.xlabel('Number of iterations')
 plt.ylabel('Average relative difference curr. and prev. iteration')
 plt.title('Convergence in an adaptive grid')
-
-
+##############################################################################
+#Store relevant data; mesh, interpolated functions of the electric field and convergence list.
+np.save('Convergencearray.npy',diff_list)
+np.save('InterpolatorEx.npy',Extest)
+np.save('InterpolatorEy.npy',Eytest)
+np.save('InterpolatorEz.npy',Eztest)
+octreemesh.save('octree.json')
+'''
 
 
 

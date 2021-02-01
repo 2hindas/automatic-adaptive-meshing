@@ -22,7 +22,9 @@ zz = np.zeros(np.shape(xx))
 surface = np.c_[mkvc(xx), mkvc(yy), mkvc(zz)]
 
 box_coordinates = ((200, 600), (-500, 500), (-1000, -800))
-box_surface = M.create_box_surface(box_coordinates, cell_width, 'z', 15)
+axis = 'z'
+angle = 15
+box_surface = M.create_box_surface(box_coordinates, cell_width, axis, angle)
 mesh = M.create_octree_mesh(domain, cell_width, box_surface)
 
 # Defining transmitter location
@@ -51,11 +53,11 @@ M.refine_at_locations(mesh, receiver_locations)
 
 mesh.finalize()
 
-# for i in range(0, 60):
-#     M.plot_mesh_slice(mesh, 'z', i, save=True)
-# exit()
+for i in range(0, 65):
+    M.plot_mesh_slice(mesh, 'z', i, save=True)
+exit()
 
-print(mesh)
+# print(mesh)
 
 print("Total number of cells", mesh.nC)
 print("Total number of cell faces", mesh.n_faces)
@@ -78,14 +80,15 @@ model_map = maps.InjectActiveCells(mesh, ind_active, res_background)
 # Define model. Models in SimPEG are vector arrays
 model = res_background * np.ones(ind_active.sum())
 
-ind_block = utils.get_ind_block(mesh, ind_active, box_coordinates)
+ind_block = utils.get_ind_block(mesh, ind_active, box_coordinates, axis=axis, angle=angle)
 model[ind_block] = res_block
 
 mesh, ex, ey, ez, diff_list = iterator(mesh, domain, surface, cell_width, box_surface,
                                        box_coordinates
                                        , receiver_locations, source_locations, survey
                                        , res_background, res_block, model_map
-                                       , model, ind_block, lim_iterations=15, interpolation='rbf')
+                                       , model, ind_block, lim_iterations=15, interpolation='rbf',
+                                       axis=axis, degrees_rad=angle)
 
 print(mesh)
 plt.figure(1)

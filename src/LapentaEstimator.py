@@ -216,16 +216,46 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
              model_map, model, ind_object, frequency=1, omega=2 * np.pi
              , parameter='resistivity', interpolation='rbf', type_object='block'
              , lim_iterations=5, factor_object=2, factor_receiver=3, factor_source=3
-             , refine_percentage=0.05, axis='x', degrees_rad=0, radius=1):
+             , refine_percentage=0.05, axis='x', degrees_rad=0, radius=1, Ex=None, Ey=None, Ez=None
+             ,diff_list=np.array([[0,0]]), r_a_o_list=None,r_a_r_list=None,r_a_s_list=None):
     """An iteration scheme that implements a Lapenta error estimator to adaptively refine
     a mesh, in order to reduce the error of the numerical solution. Specifically for objects in a domain."""
+    """If you want to continue from previous iteration, you have to give the mesh, field values, convergence list and previous refinements as input arguments."""
+    #Model_map and model will be re-computed, but for completeness of main code should be given as arguments.
+    
+    # Find cells that are active in the forward modeling (cells below surface)
+    ind_active = surface2ind_topo(mesh, surface)
+
+    # Define mapping from model to active cells
+    model_map = maps.InjectActiveCells(mesh, ind_active, par_background)
+
+    # Define model. Models in SimPEG are vector arrays
+    model = par_background * np.ones(ind_active.sum())
+    if type_object == 'block':
+        ind_object = get_ind_block(mesh, ind_active, coordinates)
+    if type_object == 'sphere':
+        ind_object = get_ind_sphere(mesh, ind_active, coordinates, radius)
+
+    model[ind_object] = par_object
 
     diff = 10
-    i = 0
-    av_diff_list = []
-    refine_at_object_list = []
-    refine_at_receivers_list = []
-    refine_at_sources_list = []
+    if diff_list[0,0] == 0:
+        i = 0
+        av_diff_list = []
+        refine_at_object_list = []
+        refine_at_receivers_list = []
+        refine_at_sources_list = []
+    #Starting after the pause
+    else:
+        i = diff_list[-1,0]
+        av_diff_list = list(diff_list)
+        refine_at_object_list = r_a_o_list
+        refine_at_receivers_list = r_a_r_list
+        refine_at_sources_list = r_a_s_list
+        lim_iterations = lim_iterations+i
+        ef_old_x = Ex
+        ef_old_y = Ey
+        ef_old_z = Ez
 
     def ef_interpolator(x):
         return np.array([ef_x(*x), ef_y(*x), ef_z(*x)])
@@ -252,7 +282,29 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
                                                                                 ,
                                                                                 parameter=parameter)
         # Compare electric field values until relative difference falls below 1%
-        if i > 0:
+        if diff_list[0,0]==0:
+            if i > 0:
+                relative_difference_Efield = []
+                for cell in search_area_obj:
+                    # This equation is sensitive to catastrophic failure
+                    form = np.abs(
+                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
+                    relative_difference_Efield.append(np.linalg.norm(form))
+                for cell in search_area_receiv:
+                    # This equation is sensitive to catastrophic failure
+                    form = np.abs(
+                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
+                    relative_difference_Efield.append(np.linalg.norm(form))
+                for cell in search_area_sourc:
+                    # This equation is sensitive to catastrophic failure
+                    form = np.abs(
+                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
+                    relative_difference_Efield.append(np.linalg.norm(form))
+                    
+                diff = sum(relative_difference_Efield)/len(relative_difference_Efield)
+                av_diff_list.append([i+1,diff])
+                print("Average relative difference is ", diff)
+        else:
             relative_difference_Efield = []
             for cell in search_area_obj:
                 # This equation is sensitive to catastrophic failure
@@ -272,7 +324,7 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
                 
             diff = sum(relative_difference_Efield)/len(relative_difference_Efield)
             av_diff_list.append([i+1,diff])
-            print("Average relative difference is ", diff)
+            print("Average relative difference is ", diff) 
             
         ef_old_x = ef_x
         ef_old_y = ef_y
@@ -322,25 +374,54 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
             ind_object = get_ind_sphere(mesh, ind_active, coordinates, radius)
 
         model[ind_object] = par_object
-        i += 1
         print(i)
+        i += 1
+    if diff<0.01:
+        return mesh, ef_x, ef_y, ef_z, np.array(av_diff_list)
+    else:
+        return mesh, ef_x, ef_y, ef_z, np.array(av_diff_list), refine_at_object_list, refine_at_receivers_list, refine_at_sources_list
 
-    return mesh, ef_x, ef_y, ef_z, np.array(av_diff_list)
 
 
 def iteratornonobject(mesh, domain, cell_width, landscape, receiver_locations, source_locations, survey,
              resistivity_function,model_map, model,frequency=1, omega=2 * np.pi
              , parameter='resistivity', interpolation='rbf'
-             , lim_iterations=5,factor_receiver=2,factor_source=2,factor_landscape=2,refine_percentage=0.05,par_inactive=1e8):
+             , lim_iterations=5,factor_receiver=2,factor_source=2,factor_landscape=2,refine_percentage=0.05,par_inactive=1e8
+             ,Ex=None,Ey=None,Ez=None, diff_list=np.array([[0,0]]),r_a_l_list=None,r_a_r_list=None,r_a_s_list=None):
     """An iteration scheme that implements a Lapenta error estimator to adaptively refine
     a mesh, in order to reduce the error of the numerical solution. Specifically designed for large landscapes."""
+    """If you want to continue from previous iteration, you have to give the mesh, field values and convergence list and previous refinements as input arguments."""
+    
+    #Model_map and model will be re-computed, but for completeness of main code should be given as arguments.
+    
+    # Find cells that are active in the forward modeling (cells below surface)
+    ind_active = np.array([True]*mesh.n_cells)
+
+    # Define mapping from model to active cells
+    model_map = maps.InjectActiveCells(mesh, ind_active, par_inactive)
+    
+    # Define model. Models in SimPEG are vector arrays
+    model = resistivity_function(mesh.cell_centers)
 
     diff = 10
     i = 0
-    av_diff_list = []
-    refine_at_landscape_list = []
-    refine_at_receivers_list = []
-    refine_at_sources_list = []
+    if diff_list[0,0]==0:
+        i = 0
+        av_diff_list = []
+        refine_at_landscape_list = []
+        refine_at_receivers_list = []
+        refine_at_sources_list = []
+    #Starting after the pause
+    else:
+        i = diff_list[-1,0]
+        av_diff_list = list(diff_list)
+        refine_at_landscape_list = r_a_l_list
+        refine_at_receivers_list = r_a_r_list
+        refine_at_sources_list = r_a_s_list
+        lim_iterations = lim_iterations+i
+        ef_old_x = Ex
+        ef_old_y = Ey
+        ef_old_z = Ez
 
     def ef_interpolator(x):
         return np.array([ef_x(*x), ef_y(*x), ef_z(*x)])
@@ -350,7 +431,7 @@ def iteratornonobject(mesh, domain, cell_width, landscape, receiver_locations, s
 
     while diff > 0.01 and i < lim_iterations:
         #Maximum relative difference between current and previous iteration should fall below 1% in order to converge.
-
+        
         # Define search areas
         search_area_below_landscape = search_area_landscape(mesh,domain,landscape,factor=factor_landscape)
         search_area_receiv = search_area_receivers(mesh, receiver_locations,
@@ -367,7 +448,29 @@ def iteratornonobject(mesh, domain, cell_width, landscape, receiver_locations, s
                                                                                 ,
                                                                                 parameter=parameter)
         # Compare electric field values until relative difference falls below 1%
-        if i > 0:
+        if diff_list[0,0]==0:
+            if i > 0:
+                relative_difference_Efield = []
+                for cell in search_area_below_landscape:
+                    # This equation is sensitive to catastrophic failure
+                    form = np.abs(
+                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
+                    relative_difference_Efield.append(np.linalg.norm(form))
+                for cell in search_area_receiv:
+                    # This equation is sensitive to catastrophic failure
+                    form = np.abs(
+                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
+                    relative_difference_Efield.append(np.linalg.norm(form))
+                for cell in search_area_sourc:
+                    # This equation is sensitive to catastrophic failure
+                    form = np.abs(
+                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
+                    relative_difference_Efield.append(np.linalg.norm(form))
+                    
+                diff = sum(relative_difference_Efield)/len(relative_difference_Efield)
+                av_diff_list.append([i+1,diff])
+                print("Average relative difference is ", diff)
+        else:
             relative_difference_Efield = []
             for cell in search_area_below_landscape:
                 # This equation is sensitive to catastrophic failure
@@ -388,7 +491,7 @@ def iteratornonobject(mesh, domain, cell_width, landscape, receiver_locations, s
             diff = sum(relative_difference_Efield)/len(relative_difference_Efield)
             av_diff_list.append([i+1,diff])
             print("Average relative difference is ", diff)
-            
+                
         ef_old_x = ef_x
         ef_old_y = ef_y
         ef_old_z = ef_z
@@ -431,10 +534,12 @@ def iteratornonobject(mesh, domain, cell_width, landscape, receiver_locations, s
         
         # Define model. Models in SimPEG are vector arrays
         model = resistivity_function(mesh.cell_centers)
-        i += 1
         print(i)
-
-    return mesh, ef_x, ef_y, ef_z, np.array(av_diff_list)
+        i += 1
+    if diff<0.01:
+        return mesh, ef_x, ef_y, ef_z, np.array(av_diff_list)
+    else:
+        return mesh, ef_x, ef_y, ef_z, np.array(av_diff_list), refine_at_landscape_list, refine_at_receivers_list, refine_at_sources_list
 
 
 

@@ -277,14 +277,14 @@ Ey_inter = Efield[len(xedges):len(xedges) + len(yedges)] #y-component of the ele
 Ez_inter = Efield[
            len(xedges) + len(yedges):len(xedges) + len(yedges) + len(zedges)] #z-component of the electric field on the z-edges
 
-xsearch = np.where((xedges[:,0]>0) & (xedges[:,0]<20000) & (xedges[:,1]>0) & (xedges[:,1]<20000) & (xedges[:,2]>-7000) & (xedges[:,2]<500))
-ysearch = np.where((yedges[:,0]>0) & (yedges[:,0]<20000) & (yedges[:,1]>0) & (yedges[:,1]<20000) & (yedges[:,2]>-7000) & (yedges[:,2]<500))
-zsearch = np.where((zedges[:,0]>0) & (zedges[:,0]<20000) & (zedges[:,1]>0) & (zedges[:,1]<20000) & (zedges[:,2]>-7000) & (zedges[:,2]<500))
+xsearch = np.where((xedges[:,0]>=0) & (xedges[:,0]<=20000) & (xedges[:,1]>=0) & (xedges[:,1]<=20000) & (xedges[:,2]>=-7000) & (xedges[:,2]<=500))
+ysearch = np.where((yedges[:,0]>=0) & (yedges[:,0]<=20000) & (yedges[:,1]>=0) & (yedges[:,1]<=20000) & (yedges[:,2]>=-7000) & (yedges[:,2]<=500))
+zsearch = np.where((zedges[:,0]>=0) & (zedges[:,0]<=20000) & (zedges[:,1]>=0) & (zedges[:,1]<=20000) & (zedges[:,2]>=-7000) & (zedges[:,2]<=500))
 
 Ex = np.take(Ex_inter,xsearch[0])
 Ey = np.take(Ey_inter,ysearch[0])
 Ez = np.take(Ez_inter,zsearch[0])
 
-xedges = xedges[(xedges[:,0]>0) & (xedges[:,0]<20000) & (xedges[:,1]>0) & (xedges[:,1]<20000) & (xedges[:,2]>-7000) & (xedges[:,2]<500)]
-yedges = yedges[(yedges[:,0]>0) & (yedges[:,0]<20000) & (yedges[:,1]>0) & (yedges[:,1]<20000) & (yedges[:,2]>-7000) & (yedges[:,2]<500)]
-zedges = zedges[(zedges[:,0]>0) & (zedges[:,0]<20000) & (zedges[:,1]>0) & (zedges[:,1]<20000) & (zedges[:,2]>-7000) & (zedges[:,2]<500)]
+xedges = xedges[(xedges[:,0]>=0) & (xedges[:,0]<=20000) & (xedges[:,1]>=0) & (xedges[:,1]<=20000) & (xedges[:,2]>=-7000) & (xedges[:,2]<=500)]
+yedges = yedges[(yedges[:,0]>=0) & (yedges[:,0]<=20000) & (yedges[:,1]>=0) & (yedges[:,1]<=20000) & (yedges[:,2]>=-7000) & (yedges[:,2]<=500)]
+zedges = zedges[(zedges[:,0]>=0) & (zedges[:,0]<=20000) & (zedges[:,1]>=0) & (zedges[:,1]<=20000) & (zedges[:,2]>=-7000) & (zedges[:,2]<=500)]

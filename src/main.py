@@ -78,15 +78,34 @@ model = res_background * np.ones(ind_active.sum())
 ind_block = utils.get_ind_block(mesh, ind_active, box_coordinates)
 model[ind_block] = res_block
 '''
+
+mesh, Extest, Eytest, Eztest, diff_list, refine_at_object_list, refine_at_receivers_list, refine_at_sources_list = iterator(mesh, domain, surface, cell_width, box_surface, box_coordinates
+                , receiver_locations, source_locations, survey
+                , res_background, res_block, model_map
+                , model, ind_block, lim_iterations=2)
+
+print(mesh)
+print(diff_list)
 mesh, Extest, Eytest, Eztest, diff_list = iterator(mesh, domain, surface, cell_width, box_surface, box_coordinates
                 , receiver_locations, source_locations, survey
                 , res_background, res_block, model_map
-                , model, ind_block, lim_iterations=1)
-
+                , model, ind_block, lim_iterations=4,Ex=Extest,Ey=Eytest,Ez=Eztest,diff_list=diff_list
+                ,r_a_o_list=refine_at_object_list
+                , r_a_r_list=refine_at_receivers_list
+                , r_a_s_list=refine_at_sources_list)
 print(mesh)
+print(diff_list)
+'''
 '''
 
+mesh, Extest, Eytest, Eztest, diff_list = iterator(mesh, domain, surface, cell_width, box_surface, box_coordinates
+                , receiver_locations, source_locations, survey
+                , res_background, res_block, model_map
+                , model, ind_block, lim_iterations=5)
 
+print(mesh)
+print(diff_list)
+'''
 '''
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')

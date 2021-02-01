@@ -56,10 +56,11 @@ M.refine_at_locations(mesh, receiver_locations)
 
 mesh.finalize()
 
-# for i in range(0, 60):
-#     M.plot_mesh_slice(mesh, 'z', i, save=True)
-# exit()
-#
+
+for i in range(0, 60):
+    M.plot_mesh_slice(mesh, 'z', i, save=True)
+exit()
+
 print(mesh)
 
 print("Total number of cells", mesh.nC)
@@ -85,7 +86,7 @@ model = res_background * np.ones(ind_active.sum())
 
 ind_sphere = utils.get_ind_sphere(mesh, ind_active, sphere_origin,radius)
 model[ind_sphere] = res_block
-'''
+# '''
 
 mesh, ex, ey, ez, diff_list = iterator(mesh, domain, surface, cell_width, sphere_surface, sphere_origin
                 , receiver_locations, source_locations, survey
@@ -93,13 +94,22 @@ mesh, ex, ey, ez, diff_list = iterator(mesh, domain, surface, cell_width, sphere
                 , model, ind_sphere, lim_iterations=20,radius=radius,interpolation='rbf',type_object='sphere')
 
 
-print(mesh)
-plt.figure(1)
-plt.plot(diff_list[:,0],diff_list[:,1])
-plt.xlabel('Number of iterations')
-plt.ylabel('Average relative difference curr. and prev. iteration')
-plt.title('Convergence of a sphere in an adaptive grid')
-'''
+print(diff_list[:, 0])
+print(diff_list[:, 1])
+
+np.savetxt('rotated_block_relative_diff.csv', diff_list, delimiter=',')
+
+for i in range(0, 4000):
+    M.plot_mesh_slice(mesh, 'z', i, save=True)
+
+# print(mesh)
+# plt.figure(1)
+# plt.plot(diff_list[:,0],diff_list[:,1])
+# plt.xlabel('Number of iterations')
+# plt.ylabel('Average relative difference curr. and prev. iteration')
+# plt.title('Convergence of a sphere in an adaptive grid')
+
+
 
 
 '''
