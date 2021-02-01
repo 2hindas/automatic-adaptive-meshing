@@ -5,7 +5,7 @@ from discretize.utils import mkvc, refine_tree_xyz
 from scipy.spatial.transform import Rotation as R
 
 
-def create_box_surface(coordinates, cellwidth, axis, degree_rad):
+def create_box_surface(coordinates, cellwidth, axis='x', degree_rad=0):
     """Creates a list of coordinates of points on the surface of a box.
 
     Parameters

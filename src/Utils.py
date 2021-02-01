@@ -1,4 +1,6 @@
 import SimPEG.electromagnetics.frequency_domain as fdem
+from scipy.spatial.transform import Rotation as Rot
+import numpy as np
 
 
 def define_survey(frequencies, receiver_locations, source_locations, num_transmitters):
@@ -77,6 +79,7 @@ def search_area_receivers(mesh, receiver_locations, factor=3):
 
     return search_area
 
+
 def search_area_sources(mesh, source_locations, factor=3):
     """Defines the search area in a mesh for given sources using a given factor that determines
     the search range."""
@@ -100,7 +103,8 @@ def search_area_sources(mesh, source_locations, factor=3):
 
     return search_area
 
-def search_area_landscape(mesh, domain,landscape,factor=3):
+
+def search_area_landscape(mesh, domain, landscape, factor=3):
     """Defines the search area in a mesh for given sources using a given factor that determines
     the search range."""
 
@@ -108,7 +112,7 @@ def search_area_landscape(mesh, domain,landscape,factor=3):
     cell_width_Z = min(mesh.h[2])  # minimum cell width in z-direction
     Left_X = domain[0][0]  # Left X
     Right_X = domain[0][1]  # Right X
-    Left_Y = domain[1][0] # Left Y
+    Left_Y = domain[1][0]  # Left Y
     Right_Y = domain[1][1]  # Right Y
     Upper_Z = max(landscape[:, 2])  # Upper Z
     Lower_Z = domain[2][0]  # Lower Z
@@ -117,21 +121,27 @@ def search_area_landscape(mesh, domain,landscape,factor=3):
                         & (cells[:, 1] > (Left_Y)) & (
                                 cells[:, 1] < (Right_Y))
                         & (cells[:, 2] > (Lower_Z)) & (
-                                cells[:, 2] < (Upper_Z+factor*cell_width_Z))]
+                                cells[:, 2] < (Upper_Z + factor * cell_width_Z))]
 
     return search_area
 
 
-def get_ind_block(mesh, ind_active, coordinates):
+def get_ind_block(mesh, ind_active, coordinates, axis='x', degrees=0):
     """Retreives the indices of a block object coordinates in a mesh."""
 
+    grid = mesh.gridCC
+
+    if degrees != 0:
+        rotation = Rot.from_euler(axis, -degrees, degrees=True).as_matrix()
+        grid = np.asarray([np.dot(rotation, i) for i in grid])
+
     return (
-            (mesh.gridCC[ind_active, 0] <= coordinates[0][1])
-            & (mesh.gridCC[ind_active, 0] >= coordinates[0][0])
-            & (mesh.gridCC[ind_active, 1] <= coordinates[1][1])
-            & (mesh.gridCC[ind_active, 1] >= coordinates[1][0])
-            & (mesh.gridCC[ind_active, 2] <= coordinates[2][1])
-            & (mesh.gridCC[ind_active, 2] >= coordinates[2][0])
+            (grid[ind_active, 0] <= coordinates[0][1])
+            & (grid[ind_active, 0] >= coordinates[0][0])
+            & (grid[ind_active, 1] <= coordinates[1][1])
+            & (grid[ind_active, 1] >= coordinates[1][0])
+            & (grid[ind_active, 2] <= coordinates[2][1])
+            & (grid[ind_active, 2] >= coordinates[2][0])
     )
 
 

@@ -2,12 +2,11 @@
 
 
 import numpy as np
-import SimPEG.electromagnetics.frequency_domain as fdem
 from scipy.interpolate import Rbf, LinearNDInterpolator, NearestNDInterpolator
 import numdifftools as nd
-from Meshing import refine_at_locations, create_octree_mesh
+from src.Meshing import *
 from SimPEG.utils import surface2ind_topo
-from Utils import search_area_receivers, search_area_sources, search_area_object,search_area_landscape, get_ind_block, get_ind_sphere
+from src.Utils import *
 from SimPEG import maps
 
 try:
@@ -120,7 +119,6 @@ def estimate_curl_electric_field(mesh, survey, model_map, model, interpolation='
     z_edges = mesh.edges_z
 
     # Solution by forward modelling for magnetic flux density and electric field
-    # This uses a rhoMap (resistivity)
     if parameter == 'resistivity':
         simulation = fdem.simulation.Simulation3DMagneticFluxDensity(
             mesh, survey=survey, rhoMap=model_map, Solver=Solver
@@ -129,7 +127,6 @@ def estimate_curl_electric_field(mesh, survey, model_map, model, interpolation='
         simulationelectricfield = fdem.simulation.Simulation3DElectricField(
             mesh, survey=survey, rhoMap=model_map, Solver=Solver
         )
-    # This uses a sigmaMap (conductivity)
     else:
         simulation = fdem.simulation.Simulation3DMagneticFluxDensity(
             mesh, survey=survey, sigmaMap=model_map, Solver=Solver
@@ -186,7 +183,7 @@ def compute_cell_error(cell, curl_x, curl_y, curl_z, ef_x, ef_y, ef_z):
     def ef_interpolator(x):
         return np.array([ef_x(*x), ef_y(*x), ef_z(*x)])
 
-    jacobian = nd.Jacobian(ef_interpolator,order=4)(cell)
+    jacobian = nd.Jacobian(ef_interpolator, order=2)(cell)
     jacobian[np.isnan(jacobian)] = 0  # handle NaN-values in the jacobian
     curl = np.array([jacobian[2, 1] - jacobian[1, 2], jacobian[0, 2] -
                      jacobian[2, 0], jacobian[1, 0] - jacobian[0, 1]])
@@ -200,6 +197,7 @@ def estimate_error(search_area, curl_x, curl_y, curl_z
                    , ef_x, ef_y, ef_z,
                    refine_percentage=0.05):
     """Estimates the error in a predefined search area in a mesh"""
+
     cell_errors = []
     for cell in search_area:
         error = compute_cell_error(cell, curl_x, curl_y, curl_z, ef_x, ef_y, ef_z)
@@ -213,16 +211,19 @@ def estimate_error(search_area, curl_x, curl_y, curl_z
 
 def iterator(mesh, domain, surface, cell_width, objct, coordinates
              , receiver_locations, source_locations, survey, par_background, par_object,
-             model_map, model, ind_object, frequency=1, omega=2 * np.pi
+             ind_object, frequency=1, omega=2 * np.pi
              , parameter='resistivity', interpolation='rbf', type_object='block'
              , lim_iterations=5, factor_object=2, factor_receiver=3, factor_source=3
              , refine_percentage=0.05, axis='x', degrees_rad=0, radius=1, Ex=None, Ey=None, Ez=None
-             ,diff_list=np.array([[0,0]]), r_a_o_list=None,r_a_r_list=None,r_a_s_list=None):
-    """An iteration scheme that implements a Lapenta error estimator to adaptively refine
-    a mesh, in order to reduce the error of the numerical solution. Specifically for objects in a domain."""
-    """If you want to continue from previous iteration, you have to give the mesh, field values, convergence list and previous refinements as input arguments."""
-    #Model_map and model will be re-computed, but for completeness of main code should be given as arguments.
-    
+             , diff_list=np.array([[0, 0]]), r_a_o_list=None, r_a_r_list=None, r_a_s_list=None):
+
+    """An iteration scheme that implements an error estimator to adaptively refine
+    a mesh, in order to reduce the error of the electric field solution.
+    This function is mainly used for small objects in a domain.
+
+    If you want to continue from previous iteration, you have to give the mesh, field values,
+    convergence list and previous refinements as input arguments."""
+
     # Find cells that are active in the forward modeling (cells below surface)
     ind_active = surface2ind_topo(mesh, surface)
 
@@ -232,27 +233,27 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
     # Define model. Models in SimPEG are vector arrays
     model = par_background * np.ones(ind_active.sum())
     if type_object == 'block':
-        ind_object = get_ind_block(mesh, ind_active, coordinates)
+        ind_object = get_ind_block(mesh, ind_active, coordinates, axis, degrees_rad)
     if type_object == 'sphere':
         ind_object = get_ind_sphere(mesh, ind_active, coordinates, radius)
 
     model[ind_object] = par_object
 
     diff = 10
-    if diff_list[0,0] == 0:
+    if diff_list[0, 0] == 0:
         i = 0
         av_diff_list = []
         refine_at_object_list = []
         refine_at_receivers_list = []
         refine_at_sources_list = []
-    #Starting after the pause
+    # Starting after the pause
     else:
-        i = diff_list[-1,0]
+        i = diff_list[-1, 0]
         av_diff_list = list(diff_list)
         refine_at_object_list = r_a_o_list
         refine_at_receivers_list = r_a_r_list
         refine_at_sources_list = r_a_s_list
-        lim_iterations = lim_iterations+i
+        lim_iterations = lim_iterations + i
         ef_old_x = Ex
         ef_old_y = Ey
         ef_old_z = Ez
@@ -264,13 +265,13 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
         return np.array([ef_old_x(*x), ef_old_y(*x), ef_old_z(*x)])
 
     while diff > 0.01 and i < lim_iterations:
-        #Maximum relative difference between current and previous iteration should fall below 1% in order to converge.
+        # Maximum relative difference between current and previous iteration should fall below 1% in order to converge.
 
         # Define search areas
         search_area_obj = search_area_object(mesh, objct, factor=factor_object)
         search_area_receiv = search_area_receivers(mesh, receiver_locations,
-                                                         factor=factor_receiver)
-        search_area_sourc = search_area_sources(mesh,source_locations,
+                                                   factor=factor_receiver)
+        search_area_sourc = search_area_sources(mesh, source_locations,
                                                 factor=factor_source)
         # Interpolate curl and electric field
         curl_x, curl_y, curl_z, ef_x, ef_y, ef_z = estimate_curl_electric_field(mesh, survey,
@@ -282,27 +283,30 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
                                                                                 ,
                                                                                 parameter=parameter)
         # Compare electric field values until relative difference falls below 1%
-        if diff_list[0,0]==0:
+        if diff_list[0, 0] == 0:
             if i > 0:
                 relative_difference_Efield = []
                 for cell in search_area_obj:
                     # This equation is sensitive to catastrophic failure
                     form = np.abs(
-                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
+                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(
+                            cell))
                     relative_difference_Efield.append(np.linalg.norm(form))
                 for cell in search_area_receiv:
                     # This equation is sensitive to catastrophic failure
                     form = np.abs(
-                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
+                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(
+                            cell))
                     relative_difference_Efield.append(np.linalg.norm(form))
                 for cell in search_area_sourc:
                     # This equation is sensitive to catastrophic failure
                     form = np.abs(
-                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
+                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(
+                            cell))
                     relative_difference_Efield.append(np.linalg.norm(form))
-                    
-                diff = sum(relative_difference_Efield)/len(relative_difference_Efield)
-                av_diff_list.append([i+1,diff])
+
+                diff = sum(relative_difference_Efield) / len(relative_difference_Efield)
+                av_diff_list.append([i + 1, diff])
                 print("Average relative difference is ", diff)
         else:
             relative_difference_Efield = []
@@ -321,11 +325,11 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
                 form = np.abs(
                     (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
                 relative_difference_Efield.append(np.linalg.norm(form))
-                
-            diff = sum(relative_difference_Efield)/len(relative_difference_Efield)
-            av_diff_list.append([i+1,diff])
-            print("Average relative difference is ", diff) 
-            
+
+            diff = sum(relative_difference_Efield) / len(relative_difference_Efield)
+            av_diff_list.append([i + 1, diff])
+            print("Average relative difference is ", diff)
+
         ef_old_x = ef_x
         ef_old_y = ef_y
         ef_old_z = ef_z
@@ -344,16 +348,16 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
         refine_at_receivers_list.append(cells_to_refine_receivers)
         # Define cells to refine near sources
         cells_to_refine_sources = estimate_error(search_area_sourc
-                                                   , curl_x, curl_y, curl_z
-                                                   , ef_x, ef_y, ef_z
-                                                   , refine_percentage=refine_percentage)
+                                                 , curl_x, curl_y, curl_z
+                                                 , ef_x, ef_y, ef_z
+                                                 , refine_percentage=refine_percentage)
         refine_at_sources_list.append(cells_to_refine_sources)
         # Refine the mesh
         mesh = create_octree_mesh(domain, cell_width, objct, 'surface')
         refine_at_locations(mesh, source_locations)
         refine_at_locations(mesh, receiver_locations)
         for refo in refine_at_object_list:
-            refine_at_locations(mesh,refo)
+            refine_at_locations(mesh, refo)
         for refr in refine_at_receivers_list:
             refine_at_locations(mesh, refr)
         for refs in refine_at_sources_list:
@@ -376,49 +380,53 @@ def iterator(mesh, domain, surface, cell_width, objct, coordinates
         model[ind_object] = par_object
         print(i)
         i += 1
-    if diff<0.01:
+    if diff < 0.01:
         return mesh, ef_x, ef_y, ef_z, np.array(av_diff_list)
     else:
-        return mesh, ef_x, ef_y, ef_z, np.array(av_diff_list), refine_at_object_list, refine_at_receivers_list, refine_at_sources_list
+        return mesh, ef_x, ef_y, ef_z, np.array(
+            av_diff_list), refine_at_object_list, refine_at_receivers_list, refine_at_sources_list
 
 
+def iteratornonobject(mesh, domain, cell_width, landscape, receiver_locations, source_locations,
+                      survey,
+                      resistivity_function, model_map, model, frequency=1, omega=2 * np.pi
+                      , parameter='resistivity', interpolation='rbf'
+                      , lim_iterations=5, factor_receiver=2, factor_source=2, factor_landscape=2,
+                      refine_percentage=0.05, par_inactive=1e8
+                      , Ex=None, Ey=None, Ez=None, diff_list=np.array([[0, 0]]), r_a_l_list=None,
+                      r_a_r_list=None, r_a_s_list=None):
+    """An iteration scheme that implements an error estimator to adaptively refine
+    a mesh, in order to reduce the error of the electric field solution.
+    This function is mainly used for large geophysical models.
 
-def iteratornonobject(mesh, domain, cell_width, landscape, receiver_locations, source_locations, survey,
-             resistivity_function,model_map, model,frequency=1, omega=2 * np.pi
-             , parameter='resistivity', interpolation='rbf'
-             , lim_iterations=5,factor_receiver=2,factor_source=2,factor_landscape=2,refine_percentage=0.05,par_inactive=1e8
-             ,Ex=None,Ey=None,Ez=None, diff_list=np.array([[0,0]]),r_a_l_list=None,r_a_r_list=None,r_a_s_list=None):
-    """An iteration scheme that implements a Lapenta error estimator to adaptively refine
-    a mesh, in order to reduce the error of the numerical solution. Specifically designed for large landscapes."""
-    """If you want to continue from previous iteration, you have to give the mesh, field values and convergence list and previous refinements as input arguments."""
-    
-    #Model_map and model will be re-computed, but for completeness of main code should be given as arguments.
-    
+    If you want to continue from previous iteration, you have to give the mesh, field values,
+    convergence list and previous refinements as input arguments."""
+
     # Find cells that are active in the forward modeling (cells below surface)
-    ind_active = np.array([True]*mesh.n_cells)
+    ind_active = np.array([True] * mesh.n_cells)
 
     # Define mapping from model to active cells
     model_map = maps.InjectActiveCells(mesh, ind_active, par_inactive)
-    
+
     # Define model. Models in SimPEG are vector arrays
     model = resistivity_function(mesh.cell_centers)
 
     diff = 10
     i = 0
-    if diff_list[0,0]==0:
+    if diff_list[0, 0] == 0:
         i = 0
         av_diff_list = []
         refine_at_landscape_list = []
         refine_at_receivers_list = []
         refine_at_sources_list = []
-    #Starting after the pause
+    # Starting after the pause
     else:
-        i = diff_list[-1,0]
+        i = diff_list[-1, 0]
         av_diff_list = list(diff_list)
         refine_at_landscape_list = r_a_l_list
         refine_at_receivers_list = r_a_r_list
         refine_at_sources_list = r_a_s_list
-        lim_iterations = lim_iterations+i
+        lim_iterations = lim_iterations + i
         ef_old_x = Ex
         ef_old_y = Ey
         ef_old_z = Ez
@@ -430,13 +438,15 @@ def iteratornonobject(mesh, domain, cell_width, landscape, receiver_locations, s
         return np.array([ef_old_x(*x), ef_old_y(*x), ef_old_z(*x)])
 
     while diff > 0.01 and i < lim_iterations:
-        #Maximum relative difference between current and previous iteration should fall below 1% in order to converge.
-        
+        # Maximum relative difference between current and previous iteration should fall below 1%
+        # in order to converge.
+
         # Define search areas
-        search_area_below_landscape = search_area_landscape(mesh,domain,landscape,factor=factor_landscape)
+        search_area_below_landscape = search_area_landscape(mesh, domain, landscape,
+                                                            factor=factor_landscape)
         search_area_receiv = search_area_receivers(mesh, receiver_locations,
-                                                         factor=factor_receiver)
-        search_area_sourc = search_area_sources(mesh,source_locations,
+                                                   factor=factor_receiver)
+        search_area_sourc = search_area_sources(mesh, source_locations,
                                                 factor=factor_source)
         # Interpolate curl and electric field
         curl_x, curl_y, curl_z, ef_x, ef_y, ef_z = estimate_curl_electric_field(mesh, survey,
@@ -448,78 +458,78 @@ def iteratornonobject(mesh, domain, cell_width, landscape, receiver_locations, s
                                                                                 ,
                                                                                 parameter=parameter)
         # Compare electric field values until relative difference falls below 1%
-        if diff_list[0,0]==0:
+        if diff_list[0, 0] == 0:
             if i > 0:
                 relative_difference_Efield = []
                 for cell in search_area_below_landscape:
-                    # This equation is sensitive to catastrophic failure
                     form = np.abs(
-                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
+                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(
+                            cell))
                     relative_difference_Efield.append(np.linalg.norm(form))
                 for cell in search_area_receiv:
-                    # This equation is sensitive to catastrophic failure
                     form = np.abs(
-                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
+                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(
+                            cell))
                     relative_difference_Efield.append(np.linalg.norm(form))
                 for cell in search_area_sourc:
-                    # This equation is sensitive to catastrophic failure
                     form = np.abs(
-                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
+                        (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(
+                            cell))
                     relative_difference_Efield.append(np.linalg.norm(form))
-                    
-                diff = sum(relative_difference_Efield)/len(relative_difference_Efield)
-                av_diff_list.append([i+1,diff])
+
+                diff = sum(relative_difference_Efield) / len(relative_difference_Efield)
+                av_diff_list.append([i + 1, diff])
                 print("Average relative difference is ", diff)
         else:
             relative_difference_Efield = []
             for cell in search_area_below_landscape:
-                # This equation is sensitive to catastrophic failure
                 form = np.abs(
                     (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
                 relative_difference_Efield.append(np.linalg.norm(form))
             for cell in search_area_receiv:
-                # This equation is sensitive to catastrophic failure
                 form = np.abs(
                     (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
                 relative_difference_Efield.append(np.linalg.norm(form))
             for cell in search_area_sourc:
-                # This equation is sensitive to catastrophic failure
                 form = np.abs(
                     (ef_old_interpolator(cell) - ef_interpolator(cell)) / ef_old_interpolator(cell))
                 relative_difference_Efield.append(np.linalg.norm(form))
-                
-            diff = sum(relative_difference_Efield)/len(relative_difference_Efield)
-            av_diff_list.append([i+1,diff])
+
+            diff = sum(relative_difference_Efield) / len(relative_difference_Efield)
+            av_diff_list.append([i + 1, diff])
             print("Average relative difference is ", diff)
-                
+
         ef_old_x = ef_x
         ef_old_y = ef_y
         ef_old_z = ef_z
 
         # Define cells to refine near object
         cells_to_refine_landscape = estimate_error(search_area_below_landscape
-                                                , curl_x, curl_y, curl_z
-                                                , ef_x, ef_y, ef_z
-                                                , refine_percentage=refine_percentage)
+                                                   , curl_x, curl_y, curl_z
+                                                   , ef_x, ef_y, ef_z
+                                                   , refine_percentage=refine_percentage)
         refine_at_landscape_list.append(cells_to_refine_landscape)
+
         # Define cells to refine near receivers
         cells_to_refine_receivers = estimate_error(search_area_receiv
                                                    , curl_x, curl_y, curl_z
                                                    , ef_x, ef_y, ef_z
                                                    , refine_percentage=refine_percentage)
         refine_at_receivers_list.append(cells_to_refine_receivers)
+
         # Define cells to refine near sources
         cells_to_refine_sources = estimate_error(search_area_sourc
-                                                   , curl_x, curl_y, curl_z
-                                                   , ef_x, ef_y, ef_z
-                                                   , refine_percentage=refine_percentage)
+                                                 , curl_x, curl_y, curl_z
+                                                 , ef_x, ef_y, ef_z
+                                                 , refine_percentage=refine_percentage)
         refine_at_sources_list.append(cells_to_refine_sources)
+
         # Refine the mesh
         mesh = create_octree_mesh(domain, cell_width, landscape, 'surface')
         refine_at_locations(mesh, source_locations)
         refine_at_locations(mesh, receiver_locations)
         for refo in refine_at_landscape_list:
-            refine_at_locations(mesh,refo)
+            refine_at_locations(mesh, refo)
         for refr in refine_at_receivers_list:
             refine_at_locations(mesh, refr)
         for refs in refine_at_sources_list:
@@ -527,23 +537,17 @@ def iteratornonobject(mesh, domain, cell_width, landscape, receiver_locations, s
         mesh.finalize()
 
         # Find cells that are active in the forward modeling (cells below surface)
-        ind_active = np.array([True]*mesh.n_cells)
+        ind_active = np.array([True] * mesh.n_cells)
 
         # Define mapping from model to active cells
         model_map = maps.InjectActiveCells(mesh, ind_active, par_inactive)
-        
+
         # Define model. Models in SimPEG are vector arrays
         model = resistivity_function(mesh.cell_centers)
-        print(i)
+        print("Iteration: ", i)
         i += 1
-    if diff<0.01:
+    if diff < 0.01:
         return mesh, ef_x, ef_y, ef_z, np.array(av_diff_list)
     else:
-        return mesh, ef_x, ef_y, ef_z, np.array(av_diff_list), refine_at_landscape_list, refine_at_receivers_list, refine_at_sources_list
-
-
-
-
-
-
-
+        return mesh, ef_x, ef_y, ef_z, np.array(
+            av_diff_list), refine_at_landscape_list, refine_at_receivers_list, refine_at_sources_list
