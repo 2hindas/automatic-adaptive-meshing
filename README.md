@@ -2,7 +2,7 @@
 
 This repository contains the code for an adaptive mesh refinement (amr) algorithm that can be applied to electromagnetic problems in geophysical applications. The algorithm iteratively refines an octree mesh which is used as a domain discretization by SimPEG to solve Maxwell's equations. The Operator Recovery Source Detector ([ORESD](https://onlinelibrary.wiley.com/doi/abs/10.1002/nme.969)) error estimator is used to find cells where to refine the octree mesh. The algorithm can be used on simple 3D models or a large geophysical model. 
 
-The paper with the technical details and experiments regarding the algorithm can be found here.
+`report.pdf` contains the technical details and experiments regarding the adaptive meshing algorithm.
 
 ## Getting Started
 
