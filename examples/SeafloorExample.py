@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import NearestNDInterpolator
 
 plt.style.use('ggplot')
+plt.ion()
 
 # Load model
 fname = 'GemPy-II.h5'
@@ -108,6 +109,7 @@ axs[3].plot(receiver_locations[:, 2], receiver_locations[:, 1], 'bv')
 axs[1].plot(source_locations[:, 0], source_locations[:, 1], 'r*')
 axs[2].plot(source_locations[:, 0], source_locations[:, 2], 'r*')
 axs[3].plot(source_locations[:, 2], source_locations[:, 1], 'r*')
+plt.ioff()
 plt.show()
 
 # Find cells that are active in the forward modeling (cells below user-defined surface)
